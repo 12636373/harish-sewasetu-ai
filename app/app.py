@@ -70,11 +70,11 @@ except Exception:
 
 def get_db():
     return psycopg2.connect(
-        host=config.get("database", "host"),
-        port=config.get("database", "port"),
-        dbname=config.get("database", "name"),
-        user=config.get("database", "user"),
-        password=config.get("database", "password"),
+        host=os.environ.get("POSTGRES_HOST", config.get("database", "host")),
+        port=os.environ.get("POSTGRES_PORT", config.get("database", "port")),
+        dbname=os.environ.get("POSTGRES_DB", config.get("database", "name")),
+        user=os.environ.get("POSTGRES_USER", config.get("database", "user")),
+        password=os.environ.get("POSTGRES_PASSWORD", config.get("database", "password")),
     )
 
 
@@ -687,6 +687,46 @@ def eval_dashboard():
 def api_run_evals():
     summary, results = _evals_module.run_all_evals()
     return jsonify({"summary": summary, "results": results})
+
+@app.route("/health")
+def health():
+    db_ok = False
+    app_count = 0
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT count(*) FROM applications")
+        app_count = cur.fetchone()[0]
+        cur.close(); conn.close()
+        db_ok = True
+    except Exception as e:
+        app.logger.error("Health check DB error: %s" % e)
+
+    sms_ok = False
+    try:
+        r = requests.get(SMS_GATEWAY_URL + "/api/messages", timeout=2)
+        sms_ok = (r.status_code == 200)
+    except Exception:
+        pass
+
+    status_code = 200 if (db_ok and sms_ok) else 503
+    return jsonify({
+        "status": "healthy" if status_code == 200 else "degraded",
+        "timestamp": now_ist().isoformat(),
+        "database": {"connected": db_ok, "total_applications": app_count},
+        "sms_gateway": {"connected": sms_ok},
+        "scheme": {
+            "window_open": deadline_remaining() is not None,
+            "deadline": SCHEME_DEADLINE.strftime("%Y-%m-%d %H:%M:%S")
+        }
+    }), status_code
+
+@app.after_request
+def set_security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 
 if __name__ == "__main__":
