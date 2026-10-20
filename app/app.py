@@ -688,6 +688,218 @@ def api_run_evals():
     summary, results = _evals_module.run_all_evals()
     return jsonify({"summary": summary, "results": results})
 
+@app.route("/assistant")
+def assistant():
+    return render_template("assistant.html")
+
+@app.route("/api/citizen-assistant", methods=["POST"])
+def api_citizen_assistant():
+    data = request.get_json(silent=True) or {}
+    msg = data.get("message", "").strip()
+    if not msg:
+        return jsonify({"reply": "Namaskar! How can I assist you with the Old Age Pension scheme today?", "action_links": []})
+
+    msg_lower = msg.lower()
+    action_links = []
+    reply = ""
+
+    # Check for mobile number or application number
+    mobile_match = re.search(r"\b([6-9]\d{9})\b", msg)
+    app_no_match = re.search(r"\b(SSP\d+)\b", msg, re.IGNORECASE)
+
+    if mobile_match or app_no_match or "status" in msg_lower or "track" in msg_lower or "check my" in msg_lower:
+        query_val = mobile_match.group(1) if mobile_match else (app_no_match.group(1).upper() if app_no_match else None)
+        if query_val:
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT id, application_no, applicant_name, status, block, village,
+                       submitted_at, decided_at, decided_by, dob
+                FROM applications
+                WHERE mobile = %s OR application_no = %s
+                ORDER BY id DESC LIMIT 1
+            """, (query_val, query_val))
+            row = cur.fetchone()
+
+            if row:
+                app_id, app_no, name, status, block, village, sub_at, dec_at, dec_by, dob = row
+                cur.execute("SELECT action, actor, note, at FROM audit_log WHERE application_id = %s ORDER BY id DESC LIMIT 3", (app_id,))
+                audits = cur.fetchall()
+                cur.close(); conn.close()
+
+                days_elapsed = (now_ist() - sub_at.replace(tzinfo=None)).days if sub_at else 0
+                days_left = max(0, SLA_DAYS - days_elapsed)
+                dob_str = dob.strftime("%d%m%Y") if dob else ""
+
+                if status == "PENDING":
+                    reply = (
+                        f"<strong>Application Found:</strong> {app_no} for <strong>{name}</strong><br>"
+                        f"Status: <span class='status-pill status-pending'>PENDING</span> in {block} block.<br>"
+                        f"Submitted on: {sub_at.strftime('%d/%m/%Y')}.<br>"
+                        f"<strong>Statutory RTPS Guarantee:</strong> {days_left} days remaining of the 15-day SLA. "
+                        f"If an officer does not decide by day 15, your application stands <em>Deemed Approved</em> by law.<br>"
+                        f"Track online at <code>/status</code> using your mobile and Date of Birth password (<code>{dob_str}</code>)."
+                    )
+                    action_links = [
+                        {"label": "Open Status Portal", "url": "/status"},
+                        {"label": "Download Stamped Acknowledgment", "url": f"/ack/{app_id}.pdf"}
+                    ]
+                elif status in ("APPROVED", "DEEMED_APPROVED"):
+                    badge_cls = "status-approved" if status == "APPROVED" else "status-deemed_approved"
+                    label = "APPROVED" if status == "APPROVED" else "DEEMED APPROVED (RTPS Statutory)"
+                    by_txt = f"by Officer {dec_by}" if status == "APPROVED" else "automatically under RTPS 15-day statutory SLA"
+                    reply = (
+                        f"<strong>Application Found:</strong> {app_no} for <strong>{name}</strong><br>"
+                        f"Status: <span class='status-pill {badge_cls}'>{label}</span><br>"
+                        f"Decision: Processed {by_txt} on {dec_at.strftime('%d/%m/%Y') if dec_at else 'recently'}.<br>"
+                        f"Your monthly pension of <strong>₹250/month</strong> will be disbursed via Direct Benefit Transfer (DBT) to your registered bank account."
+                    )
+                    action_links = [
+                        {"label": "View Status Record", "url": "/status"},
+                        {"label": "Download Certificate/Ack", "url": f"/ack/{app_id}.pdf"}
+                    ]
+                elif status == "REJECTED":
+                    note = audits[0][2] if audits and audits[0][2] else "Documentation did not meet statutory criteria."
+                    reply = (
+                        f"<strong>Application Found:</strong> {app_no} for <strong>{name}</strong><br>"
+                        f"Status: <span class='status-pill status-rejected'>REJECTED</span><br>"
+                        f"Reason given by block officer: <em>\"{note}\"</em><br>"
+                        f"<strong>Important:</strong> Your mobile number is now unblocked. You can obtain a clearer document and submit a fresh application right away."
+                    )
+                    action_links = [
+                        {"label": "Apply Again", "url": "/apply"},
+                        {"label": "View Status Details", "url": "/status"}
+                    ]
+                elif status == "WITHDRAWN":
+                    reply = (
+                        f"Application {app_no} was <strong>WITHDRAWN</strong> voluntarily.<br>"
+                        f"Your mobile number is completely clear with no active applications. You may submit a corrected application anytime."
+                    )
+                    action_links = [{"label": "Start Fresh Application", "url": "/apply"}]
+                return jsonify({"reply": reply, "action_links": action_links})
+            else:
+                cur.close(); conn.close()
+                reply = (
+                    f"No application was found matching <code>{query_val}</code> in the portal database.<br>"
+                    f"If you haven't applied yet and are 60 years or older, you can begin your application online."
+                )
+                action_links = [{"label": "Apply for Pension", "url": "/apply"}]
+                return jsonify({"reply": reply, "action_links": action_links})
+        else:
+            reply = (
+                "To check your application status, please provide your <strong>10-digit mobile number</strong> "
+                "(e.g., <em>9876500001</em>) or your <strong>Application Number</strong> (e.g., <em>SSP26318977</em>)."
+            )
+            action_links = [{"label": "Go to Status Portal", "url": "/status"}]
+            return jsonify({"reply": reply, "action_links": action_links})
+
+    # Age / DOB / Eligibility Check
+    age_match = re.search(r"\b(\d{2})\s*(?:years|yrs|age)\b", msg_lower)
+    if not age_match:
+        age_match = re.search(r"\bage\s*(\d{2})\b", msg_lower)
+    dob_match = re.search(r"\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b", msg)
+
+    if age_match or dob_match or "eligible" in msg_lower or "qualify" in msg_lower or "criteria" in msg_lower:
+        cal_age = None
+        if dob_match:
+            try:
+                d, m, y = int(dob_match.group(1)), int(dob_match.group(2)), int(dob_match.group(3))
+                dob_dt = datetime(y, m, d)
+                today = now_ist()
+                cal_age = today.year - dob_dt.year - ((today.month, today.day) < (dob_dt.month, dob_dt.day))
+            except Exception:
+                pass
+        elif age_match:
+            cal_age = int(age_match.group(1))
+
+        if cal_age is not None:
+            if cal_age >= MIN_AGE:
+                reply = (
+                    f"<strong>Eligible on Age:</strong> An applicant aged <strong>{cal_age}</strong> meets the statutory minimum age of {MIN_AGE} years!<br>"
+                    f"<strong>Territorial Coverage:</strong> Available to residents of Sonari, Rajapara, Dhemaji Pathar, Borgaon, Namti, and Khelua blocks.<br>"
+                    f"<strong>Benefit:</strong> ₹250 per month deposited directly into your bank account via DBT."
+                )
+                action_links = [
+                    {"label": "Apply Now", "url": "/apply"},
+                    {"label": "Read Scheme Guidelines", "url": "/about"}
+                ]
+            else:
+                years_left = MIN_AGE - cal_age
+                reply = (
+                    f"<strong>Not Currently Eligible:</strong> The statutory minimum age is <strong>{MIN_AGE} years</strong>. "
+                    f"An individual aged {cal_age} will become eligible in ~{years_left} year(s).<br>"
+                    f"Under state law, applications below age 60 cannot be recorded."
+                )
+                action_links = [{"label": "View Scheme Rules", "url": "/about"}]
+            return jsonify({"reply": reply, "action_links": action_links})
+        else:
+            reply = (
+                f"<strong>Eligibility Requirements:</strong><br>"
+                f"1. <strong>Age:</strong> Must be <strong>{MIN_AGE} years or older</strong>.<br>"
+                f"2. <strong>Jurisdiction:</strong> Resident of designated blocks (Sonari, Rajapara, Dhemaji Pathar, Borgaon, Namti, Khelua).<br>"
+                f"3. <strong>Single Application:</strong> Applicant cannot have another active pension application.<br>"
+                f"Tell me your age or Date of Birth (DD/MM/YYYY) and block to verify instantly!"
+            )
+            action_links = [{"label": "Check Eligibility Online", "url": "/about"}]
+            return jsonify({"reply": reply, "action_links": action_links})
+
+    # Documents question
+    if "document" in msg_lower or "proof" in msg_lower or "voter" in msg_lower or "aadhaar" in msg_lower or "bank" in msg_lower:
+        reply = (
+            "<strong>Required Documents:</strong><br>"
+            "1. <strong>Age Proof (Upload up to 5MB):</strong> Any one of Voter ID (EPIC), Aadhaar Card, School Certificate, or Birth Certificate.<br>"
+            "2. <strong>Active Bank Details:</strong> Savings Bank Account Number & IFSC (e.g. Jan Dhan or any scheduled bank) in the applicant's name.<br>"
+            "3. <strong>Working Mobile Number:</strong> Required to receive SMS OTP and status updates."
+        )
+        action_links = [
+            {"label": "Start Application", "url": "/apply"},
+            {"label": "Scheme Details", "url": "/about"}
+        ]
+        return jsonify({"reply": reply, "action_links": action_links})
+
+    # RTPS / SLA question
+    if "15 day" in msg_lower or "sla" in msg_lower or "deemed" in msg_lower or "rtps" in msg_lower or "how long" in msg_lower or "time" in msg_lower:
+        reply = (
+            "<strong>Purvanchal Right to Public Services (RTPS) Act Guarantee:</strong><br>"
+            f"Under state law, your application must be reviewed within <strong>{SLA_DAYS} statutory days</strong>.<br>"
+            "If the block welfare officer does not approve or reject your application within 15 days, "
+            "the system's nightly automated scheduler marks it <strong>DEEMED APPROVED</strong> automatically. "
+            "You are legally protected against administrative delays."
+        )
+        action_links = [{"label": "Check My Status", "url": "/status"}]
+        return jsonify({"reply": reply, "action_links": action_links})
+
+    # Withdrawal / Edit question
+    if "withdraw" in msg_lower or "cancel" in msg_lower or "change" in msg_lower or "mistake" in msg_lower or "fix" in msg_lower:
+        reply = (
+            "<strong>Voluntary Withdrawal & Corrections:</strong><br>"
+            "If you entered an incorrect bank account or need to change details, you can withdraw your pending application:<br>"
+            "1. Sign in to the <a href='/status'>Status Portal</a> with your Mobile and Date of Birth password (DDMMYYYY).<br>"
+            "2. Click <strong>'Withdraw Application'</strong>.<br>"
+            "3. Once withdrawn, your mobile number is instantly unblocked, and you can submit a clean, corrected application at <code>/apply</code> immediately."
+        )
+        action_links = [
+            {"label": "Go to Status Portal", "url": "/status"},
+            {"label": "Apply for Pension", "url": "/apply"}
+        ]
+        return jsonify({"reply": reply, "action_links": action_links})
+
+    # Default fallback
+    reply = (
+        "Namaskar! I can help you with:<br>"
+        "• Checking if you are eligible (tell me your age or Date of Birth)<br>"
+        "• Checking the status of an existing application (provide your mobile number)<br>"
+        "• Explaining required documents and the 15-day RTPS statutory guarantee<br>"
+        "• Withdrawing an application to correct details<br>"
+        "What would you like assistance with?"
+    )
+    action_links = [
+        {"label": "Apply for Pension", "url": "/apply"},
+        {"label": "Check Status", "url": "/status"},
+        {"label": "Scheme Information", "url": "/about"}
+    ]
+    return jsonify({"reply": reply, "action_links": action_links})
+
 @app.route("/health")
 def health():
     db_ok = False

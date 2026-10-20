@@ -369,12 +369,76 @@ footer {
 .footer-links a:hover {
   color: var(--text-main);
 }
+
+/* Accessibility & High Contrast Modes */
+body.high-contrast {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --border: #000000;
+  --text-main: #000000;
+  --text-body: #000000;
+  --text-muted: #1e293b;
+  --primary: #000000;
+  --accent: #0000ee;
+  --accent-soft: #e0e7ff;
+}
+body.high-contrast .card {
+  border: 2px solid #000000;
+}
+body.high-contrast .btn {
+  border: 2px solid #000000;
+  font-weight: 700;
+}
+.access-btn {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-main);
+  transition: all 0.15s;
+}
+.access-btn:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.access-btn.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
 </style>
 </head>
 <body>
 
 <header>
   <div class="header-top-rule" style="height:3px;background:var(--accent);"></div>
+  <!-- Senior Citizen Accessibility Toolbar -->
+  <div style="background:#f1f5f9;border-bottom:1px solid var(--border);padding:4px 20px;font-size:12px;color:var(--text-muted);">
+    <div style="max-width:1080px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-weight:600;color:var(--text-main);display:inline-flex;align-items:center;gap:5px;">
+          <i class="fa-solid fa-universal-access" style="color:var(--accent);"></i> Accessibility:
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:3px;">
+          <button type="button" onclick="setFontScale(0.9)" class="access-btn" id="fs-small" title="Smaller text">A-</button>
+          <button type="button" onclick="setFontScale(1.0)" class="access-btn active" id="fs-norm" title="Default text">A</button>
+          <button type="button" onclick="setFontScale(1.15)" class="access-btn" id="fs-large" title="Larger text for seniors">A+</button>
+        </span>
+        <button type="button" onclick="toggleHighContrast()" class="access-btn" id="contrastToggle" title="Toggle High Contrast Mode">
+          <i class="fa-solid fa-circle-half-stroke"></i> High Contrast
+        </button>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <a href="/assistant" style="text-decoration:none;color:var(--accent);font-weight:600;display:inline-flex;align-items:center;gap:5px;font-size:12.5px;">
+          <i class="fa-solid fa-comments"></i> Ask AI Citizen Assistant
+        </a>
+      </div>
+    </div>
+  </div>
+
   <div class="header-inner">
     <a href="/" class="brand">
       <div class="brand-logo"><i class="fa-solid fa-shield-heart"></i></div>
@@ -387,6 +451,7 @@ footer {
       <a href="/"><i class="fa-solid fa-house"></i> Home</a>
       <a href="/about"><i class="fa-solid fa-circle-info"></i> Scheme</a>
       <a href="/status"><i class="fa-solid fa-clock-rotate-left"></i> Status</a>
+      <a href="/assistant" class="highlight" style="background:#eff6ff;color:var(--accent);font-weight:600;"><i class="fa-solid fa-robot"></i> AI Assistant</a>
       <a href="/eval-dashboard" class="highlight"><i class="fa-solid fa-chart-line"></i> Eval Dashboard</a>
       <a href="/mcp/citizen"><i class="fa-solid fa-robot"></i> Citizen MCP</a>
       <a href="/mcp/officer"><i class="fa-solid fa-user-shield"></i> Officer MCP</a>
@@ -420,6 +485,38 @@ footer {
   </div>
   <div>Department of Social Welfare &middot; Government of Purvanchal &middot; Built on Open Standards (OAuth 2.1 &amp; MCP)</div>
 </footer>
+
+<script>
+// Accessibility controls
+function setFontScale(scale) {
+  document.documentElement.style.fontSize = (scale * 100) + '%';
+  localStorage.setItem('sewasetu_font_scale', scale);
+  document.querySelectorAll('.access-btn').forEach(b => {
+    if (b.id && b.id.startsWith('fs-')) b.classList.remove('active');
+  });
+  if (scale === 0.9) document.getElementById('fs-small')?.classList.add('active');
+  else if (scale === 1.15) document.getElementById('fs-large')?.classList.add('active');
+  else document.getElementById('fs-norm')?.classList.add('active');
+}
+
+function toggleHighContrast() {
+  const isHc = document.body.classList.toggle('high-contrast');
+  localStorage.setItem('sewasetu_high_contrast', isHc ? '1' : '0');
+  const btn = document.getElementById('contrastToggle');
+  if (btn) btn.classList.toggle('active', isHc);
+}
+
+// Restore user accessibility preferences
+(function() {
+  const savedScale = localStorage.getItem('sewasetu_font_scale');
+  if (savedScale) setFontScale(parseFloat(savedScale));
+  const savedHc = localStorage.getItem('sewasetu_high_contrast');
+  if (savedHc === '1') {
+    document.body.classList.add('high-contrast');
+    document.getElementById('contrastToggle')?.classList.add('active');
+  }
+})();
+</script>
 
 </body>
 </html>

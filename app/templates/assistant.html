@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:16px;">
+  <div>
+    <h2 style="margin-bottom:4px;display:flex;align-items:center;gap:10px;">
+      <i class="fa-solid fa-robot" style="color:var(--accent);"></i> AI Citizen Assistant
+    </h2>
+    <p style="color:var(--text-muted);font-size:14px;margin-bottom:0;">
+      Ask questions in natural language. Powered by live portal data, statutory rules, and real database verification.
+    </p>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <span style="background:var(--success-soft);color:var(--success);font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;display:inline-flex;align-items:center;gap:6px;">
+      <i class="fa-solid fa-circle-check"></i> Live Data Verified
+    </span>
+  </div>
+</div>
+
+<!-- Chat Interface Container -->
+<div style="display:flex;flex-direction:column;gap:16px;max-width:800px;margin:0 auto;">
+
+  <!-- Quick Prompts Pill Bar -->
+  <div>
+    <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">
+      Common Senior Citizen Questions:
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;" id="quickPrompts">
+      <button type="button" class="btn btn-secondary quick-chip" onclick="sendPrompt(this.innerText)">
+        Am I eligible if I am 64 years old in Sonari?
+      </button>
+      <button type="button" class="btn btn-secondary quick-chip" onclick="sendPrompt(this.innerText)">
+        What documents do I need to prepare?
+      </button>
+      <button type="button" class="btn btn-secondary quick-chip" onclick="sendPrompt(this.innerText)">
+        Check status for mobile 9876500001
+      </button>
+      <button type="button" class="btn btn-secondary quick-chip" onclick="sendPrompt(this.innerText)">
+        How does the 15-day RTPS approval work?
+      </button>
+      <button type="button" class="btn btn-secondary quick-chip" onclick="sendPrompt(this.innerText)">
+        Can I withdraw to correct bank details?
+      </button>
+    </div>
+  </div>
+
+  <!-- Messages Scroll Area -->
+  <div id="chatMessages" style="background:#f8fafc;border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;min-height:360px;max-height:480px;overflow-y:auto;display:flex;flex-direction:column;gap:14px;">
+    
+    <!-- Welcome message -->
+    <div class="chat-msg assistant-msg">
+      <div class="msg-avatar"><i class="fa-solid fa-robot"></i></div>
+      <div class="msg-body">
+        <div class="msg-header">Sewa Setu Citizen Assistant &bull; Government of Purvanchal</div>
+        <div class="msg-content">
+          Namaskar! I am your AI assistant for the <strong>Old Age Pension Scheme</strong>.
+          <br><br>
+          You can ask me to:
+          <ul style="margin:8px 0 8px 20px;padding:0;">
+            <li>Check if you qualify based on your age and block</li>
+            <li>Look up your real-time application status using your 10-digit mobile number</li>
+            <li>Explain required documents and statutory RTPS 15-day guarantees</li>
+            <li>Guide you through applying, tracking, or voluntary withdrawal</li>
+          </ul>
+          How can I help you today?
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Chat Input Form -->
+  <form id="chatForm" onsubmit="handleChatSubmit(event)" style="display:flex;gap:10px;align-items:center;">
+    <input type="text" id="userInput" placeholder="Ask in natural language (e.g., 'What is the status of mobile 9876500001?' or 'Can I apply at age 62?')" 
+           style="flex:1;padding:14px 18px;font-size:15px;border:1.5px solid var(--border);border-radius:var(--radius-md);outline:none;background:#fff;transition:border-color 0.15s;" 
+           required autocomplete="off" />
+    <button type="submit" id="sendBtn" class="btn" style="padding:14px 24px;font-size:15px;display:flex;align-items:center;gap:8px;">
+      <span>Send</span> <i class="fa-solid fa-paper-plane"></i>
+    </button>
+  </form>
+
+  <!-- Accessibility and Privacy Notice -->
+  <div style="font-size:12px;color:var(--text-muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding-top:4px;">
+    <span><i class="fa-solid fa-shield-halved"></i> Privacy Protected: Never share passwords or private bank PINs in chat.</span>
+    <span>Connected to Portal System of Record</span>
+  </div>
+
+</div>
+
+<style>
+.quick-chip {
+  font-size: 12.5px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: #fff;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  color: var(--text-main);
+  transition: all 0.15s;
+}
+.quick-chip:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.chat-msg {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  animation: fadeIn 0.2s ease-in;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.chat-msg.user-msg {
+  flex-direction: row-reverse;
+}
+.msg-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.user-msg .msg-avatar {
+  background: var(--text-main);
+}
+.msg-body {
+  max-width: 82%;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+.user-msg .msg-body {
+  background: #0f172a;
+  color: #f8fafc;
+  border-color: #0f172a;
+}
+.msg-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.user-msg .msg-header {
+  color: #94a3b8;
+  text-align: right;
+}
+.msg-content {
+  font-size: 14px;
+  line-height: 1.55;
+}
+.status-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  margin: 4px 0;
+}
+.status-pending { background: #fef3c7; color: #92400e; }
+.status-approved, .status-deemed_approved { background: #dcfce7; color: #166534; }
+.status-rejected { background: #fee2e2; color: #991b1b; }
+.status-withdrawn { background: #f1f5f9; color: #475569; }
+</style>
+
+<script>
+function sendPrompt(text) {
+  document.getElementById('userInput').value = text;
+  document.getElementById('chatForm').dispatchEvent(new Event('submit'));
+}
+
+async function handleChatSubmit(e) {
+  e.preventDefault();
+  const input = document.getElementById('userInput');
+  const message = input.value.trim();
+  if (!message) return;
+
+  const chatMessages = document.getElementById('chatMessages');
+  const sendBtn = document.getElementById('sendBtn');
+
+  // Append user message
+  const userHtml = `
+    <div class="chat-msg user-msg">
+      <div class="msg-avatar"><i class="fa-solid fa-user"></i></div>
+      <div class="msg-body">
+        <div class="msg-header">You</div>
+        <div class="msg-content">${escapeHtml(message)}</div>
+      </div>
+    </div>
+  `;
+  chatMessages.insertAdjacentHTML('beforeend', userHtml);
+  input.value = '';
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  // Append typing indicator
+  const typingId = 'typing-' + Date.now();
+  const typingHtml = `
+    <div class="chat-msg assistant-msg" id="${typingId}">
+      <div class="msg-avatar"><i class="fa-solid fa-robot"></i></div>
+      <div class="msg-body">
+        <div class="msg-header">Sewa Setu Citizen Assistant</div>
+        <div class="msg-content" style="color:var(--text-muted);font-style:italic;">
+          <i class="fa-solid fa-spinner fa-spin"></i> Checking live database and scheme records...
+        </div>
+      </div>
+    </div>
+  `;
+  chatMessages.insertAdjacentHTML('beforeend', typingHtml);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  sendBtn.disabled = true;
+
+  try {
+    const res = await fetch('/api/citizen-assistant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: message })
+    });
+    const data = await res.json();
+
+    const typingElem = document.getElementById(typingId);
+    if (typingElem) typingElem.remove();
+
+    let extraHtml = '';
+    if (data.action_links && data.action_links.length > 0) {
+      extraHtml += '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">';
+      data.action_links.forEach(l => {
+        extraHtml += `<a href="${l.url}" class="btn btn-secondary" style="font-size:12px;padding:4px 10px;">${l.label}</a>`;
+      });
+      extraHtml += '</div>';
+    }
+
+    const assistantHtml = `
+      <div class="chat-msg assistant-msg">
+        <div class="msg-avatar"><i class="fa-solid fa-robot"></i></div>
+        <div class="msg-body">
+          <div class="msg-header">Sewa Setu Citizen Assistant &bull; Live Record</div>
+          <div class="msg-content">${data.reply}${extraHtml}</div>
+        </div>
+      </div>
+    `;
+    chatMessages.insertAdjacentHTML('beforeend', assistantHtml);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  } catch (err) {
+    const typingElem = document.getElementById(typingId);
+    if (typingElem) typingElem.remove();
+    const errorHtml = `
+      <div class="chat-msg assistant-msg">
+        <div class="msg-avatar"><i class="fa-solid fa-robot"></i></div>
+        <div class="msg-body">
+          <div class="msg-header">System Notice</div>
+          <div class="msg-content" style="color:var(--danger);">
+            Unable to connect to the assistant service. Please check your connection or visit <a href="/status">/status</a> directly.
+          </div>
+        </div>
+      </div>
+    `;
+    chatMessages.insertAdjacentHTML('beforeend', errorHtml);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+  }
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.innerText = text;
+  return div.innerHTML;
+}
+</script>
+
+{% endblock %}
