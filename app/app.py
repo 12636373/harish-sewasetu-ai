@@ -24,7 +24,15 @@ def now_ist():
     return datetime.now(IST).replace(tzinfo=None)
 
 import requests
-import psycopg2
+try:
+    import psycopg2
+    import psycopg2.extras
+    HAS_PSYCOPG2 = True
+except ImportError:
+    psycopg2 = None
+    HAS_PSYCOPG2 = False
+
+from db_compat import get_sqlite_db
 import werkzeug
 if not hasattr(werkzeug, "__version__"):
     werkzeug.__version__ = "3.0.0"
@@ -38,7 +46,7 @@ config = configparser.ConfigParser()
 config.read(os.path.join(BASE_DIR, "config", "app.ini"))
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY") or config.get("app", "secret_key")
+app.secret_key = os.environ.get("SECRET_KEY") or (config.get("app", "secret_key") if config.has_section("app") else "dev-secret-key-123")
 # Two hours: elderly applicants fill the form slowly; the draft lives in the session.
 app.config["PERMANENT_SESSION_LIFETIME"] = 7200
 
@@ -49,13 +57,15 @@ ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 # WITHDRAWN and REJECTED applications do not block a fresh application.
 ACTIVE_STATUSES = ("PENDING", "APPROVED", "DEEMED_APPROVED")
 
-SMS_GATEWAY_URL = config.get("app", "sms_gateway_url")
-OTP_VALIDITY_SECONDS = config.getint("app", "otp_validity_seconds")
-UPLOAD_DIR = config.get("app", "upload_dir")
-SCHEME_DEADLINE = datetime.strptime(config.get("pension", "scheme_deadline"),
-                                    "%Y-%m-%d %H:%M")
-MIN_AGE = config.getint("pension", "min_age")
-SLA_DAYS = config.getint("pension", "sla_days")
+SMS_GATEWAY_URL = config.get("app", "sms_gateway_url") if config.has_section("app") else "http://localhost:8025"
+OTP_VALIDITY_SECONDS = config.getint("app", "otp_validity_seconds") if config.has_section("app") else 300
+UPLOAD_DIR = config.get("app", "upload_dir") if config.has_section("app") else os.path.join(BASE_DIR, "uploads")
+try:
+    SCHEME_DEADLINE = datetime.strptime(config.get("pension", "scheme_deadline"), "%Y-%m-%d %H:%M")
+except Exception:
+    SCHEME_DEADLINE = datetime(2027, 3, 31, 23, 59)
+MIN_AGE = config.getint("pension", "min_age") if config.has_section("pension") else 60
+SLA_DAYS = config.getint("pension", "sla_days") if config.has_section("pension") else 15
 
 BLOCKS = ["Sonari", "Rajapara", "Dhemaji Pathar", "Borgaon", "Namti", "Khelua"]
 
@@ -72,13 +82,51 @@ except Exception:
 
 
 def get_db():
-    return psycopg2.connect(
-        host=os.environ.get("POSTGRES_HOST", config.get("database", "host")),
-        port=os.environ.get("POSTGRES_PORT", config.get("database", "port")),
-        dbname=os.environ.get("POSTGRES_DB", config.get("database", "name")),
-        user=os.environ.get("POSTGRES_USER", config.get("database", "user")),
-        password=os.environ.get("POSTGRES_PASSWORD", config.get("database", "password")),
-    )
+    """
+    Connect to PostgreSQL if configured and available (including Wasmer Managed Postgres);
+    otherwise fall back to SQLite compatibility database.
+    """
+    if os.environ.get("USE_SQLITE") == "1" or os.environ.get("POSTGRES_HOST") in ("sqlite", "none"):
+        return get_sqlite_db()
+
+    database_url = os.environ.get("DATABASE_URL")
+    
+    # Check Wasmer Managed Postgres and standard environment variables
+    host = os.environ.get("POSTGRES_HOST") or os.environ.get("DB_HOST")
+    port = os.environ.get("POSTGRES_PORT") or os.environ.get("DB_PORT")
+    dbname = os.environ.get("POSTGRES_DB") or os.environ.get("DB_NAME")
+    user = os.environ.get("POSTGRES_USER") or os.environ.get("DB_USERNAME") or os.environ.get("DB_USER")
+    password = os.environ.get("POSTGRES_PASSWORD") or os.environ.get("DB_PASSWORD")
+
+    if not host and config.has_section("database"):
+        host = config.get("database", "host")
+        port = port or config.get("database", "port")
+        dbname = dbname or config.get("database", "name")
+        user = user or config.get("database", "user")
+        password = password or config.get("database", "password")
+
+    port = port or "5432"
+    dbname = dbname or "sewasetu"
+    user = user or "sewasetu"
+    password = password or "sewasetu"
+
+    if HAS_PSYCOPG2 and (host or database_url):
+        try:
+            if database_url:
+                return psycopg2.connect(database_url, connect_timeout=3)
+            return psycopg2.connect(
+                host=host,
+                port=port,
+                dbname=dbname,
+                user=user,
+                password=password,
+                connect_timeout=3
+            )
+        except Exception as e:
+            app.logger.warning("PostgreSQL connection failed (%s); using SQLite compat layer." % e)
+
+    # Edge / sandbox fallback to self-contained SQLite
+    return get_sqlite_db()
 
 
 def sanitize(value, maxlen=100):

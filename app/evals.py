@@ -18,7 +18,10 @@ import hashlib
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-import psycopg2
+try:
+    import psycopg2
+except ImportError:
+    psycopg2 = None
 import app as portal
 import mcp_server
 
