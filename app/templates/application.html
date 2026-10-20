@@ -1,31 +1,62 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Application Status</h2>
-<table class="tbl" style="max-width:640px">
-  <tr><th>Application No</th><td>{{ a[0] }}</td></tr>
-  <tr><th>Applicant Name</th><td>{{ a[1] }}</td></tr>
-  <tr><th>Mobile</th><td>{{ a[2] }}</td></tr>
-  <tr><th>Date of Birth</th><td>{{ a[3] }}</td></tr>
-  <tr><th>Village</th><td>{{ a[4] }}</td></tr>
-  <tr><th>Block</th><td>{{ a[5] }}</td></tr>
-  <tr><th>Bank Account</th><td>{{ a[6] }}</td></tr>
-  <tr><th>IFSC</th><td>{{ a[7] }}</td></tr>
-  <tr><th>Status</th><td><b>{{ a[8] }}</b></td></tr>
-  <tr><th>Submitted</th><td>{{ a[9] }}</td></tr>
-  <tr><th>Decided</th><td>{{ a[10] or '-' }}</td></tr>
+
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:16px;">
+  <div>
+    <h2>Application Status</h2>
+    <p style="color:var(--text-muted);font-size:13.5px;margin-bottom:0;">
+      Application No: <strong style="color:var(--text-main);">{{ a[0] }}</strong>
+    </p>
+  </div>
+  <div>
+    <span style="display:inline-block;padding:6px 14px;font-size:12.5px;font-weight:700;border-radius:20px;background:{% if a[8] == 'PENDING' %}var(--warning-soft);color:var(--warning){% elif a[8] in ('APPROVED', 'DEEMED_APPROVED') %}var(--success-soft);color:var(--success){% elif a[8] == 'REJECTED' %}var(--danger-soft);color:var(--danger){% else %}#f1f5f9;color:var(--text-muted){% endif %};">
+      {{ a[8] }}
+    </span>
+  </div>
+</div>
+
+<table class="tbl" style="max-width:640px;">
+  <tbody>
+    <tr><th style="width:35%;">Applicant Name</th><td><strong>{{ a[1] }}</strong></td></tr>
+    <tr><th>Mobile Number</th><td style="font-family:monospace;">{{ a[2] }}</td></tr>
+    <tr><th>Date of Birth</th><td>{{ a[3].strftime('%d/%m/%Y') if a[3] else '-' }}</td></tr>
+    <tr><th>Village &amp; Block</th><td>{{ a[4] or '-' }}, Block: <strong>{{ a[5] or '-' }}</strong></td></tr>
+    <tr><th>Bank Account</th><td style="font-family:monospace;">{{ a[6] or '-' }}</td></tr>
+    <tr><th>IFSC Code</th><td style="font-family:monospace;"><strong>{{ a[7] or '-' }}</strong></td></tr>
+    <tr><th>Current Status</th><td><strong>{{ a[8] }}</strong></td></tr>
+    <tr><th>Submission Date</th><td>{{ a[9].strftime('%d/%m/%Y %H:%M') if a[9] else '-' }}</td></tr>
+    <tr><th>Decision Date</th><td>{{ a[10].strftime('%d/%m/%Y %H:%M') if a[10] else 'Pending Officer Review' }}</td></tr>
+  </tbody>
 </table>
-<p><a href="/ack/{{ app_id }}.pdf">Download Acknowledgment (PDF)</a> &middot;
-<a href="/status/connections">Connected applications</a></p>
+
+<div style="display:flex;gap:12px;flex-wrap:wrap;margin:24px 0;">
+  <a href="/ack/{{ app_id }}.pdf" class="btn" target="_blank" style="font-size:13px;padding:8px 16px;">
+    <i class="fa-solid fa-file-pdf"></i> Download Official Acknowledgment Receipt
+  </a>
+  <a href="/status/connections" class="btn btn-secondary" style="font-size:13px;padding:8px 16px;">
+    <i class="fa-solid fa-link"></i> Connected AI Applications
+  </a>
+</div>
+
 {% if a[8] == 'PENDING' %}
-<h3>Made a mistake?</h3>
-<p class="note">A pending application can be withdrawn. After withdrawing, you may
-submit a fresh application with the same mobile number.</p>
-<form method="post" action="/application/{{ app_id }}/withdraw"
-      onsubmit="return confirm('Withdraw application {{ a[0] }}? This cannot be undone.');">
-  <button class="btn" style="background:#a33" type="submit">Withdraw this application</button>
-</form>
+<div style="background:#fffbeb;border:1px solid rgba(217,119,6,0.3);border-radius:var(--radius-md);padding:18px;margin-top:28px;">
+  <div style="font-weight:600;font-size:13.5px;color:var(--warning);margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+    <i class="fa-solid fa-circle-question"></i> Need to correct your details?
+  </div>
+  <p style="font-size:13px;color:var(--text-body);margin-bottom:12px;">
+    If you entered a wrong bank account number or spelling, you can withdraw this pending application and submit a fresh one immediately with the same mobile number.
+  </p>
+  <form method="post" action="/application/{{ app_id }}/withdraw"
+        onsubmit="return confirm('Are you sure you want to withdraw application {{ a[0] }}? You can immediately apply afresh.');">
+    <button class="btn" style="background:var(--danger);font-size:12.5px;padding:7px 14px;" type="submit">
+      <i class="fa-solid fa-trash-can"></i> Withdraw Application
+    </button>
+  </form>
+</div>
 {% elif a[8] in ('WITHDRAWN', 'REJECTED') %}
-<p class="note">This application is {{ a[8].lower() }}. You may
-<a href="/apply">submit a new application</a>.</p>
+<div style="background:#f8fafc;border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;margin-top:24px;font-size:13px;">
+  This application is <strong>{{ a[8].lower() }}</strong>. You are eligible to <a href="/apply" style="color:var(--accent);font-weight:600;">submit a fresh application &rarr;</a>
+</div>
 {% endif %}
+
 {% endblock %}

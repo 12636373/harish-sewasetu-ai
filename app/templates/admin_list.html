@@ -1,24 +1,70 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Applications &mdash; {{ status }}</h2>
-<p><a href="/admin/dashboard">&laquo; Dashboard</a></p>
-<form method="get" style="margin-bottom:12px">
-  <input type="text" name="mobile" placeholder="Search by mobile number" value="{{ mobile or '' }}" style="max-width:240px">
-  <button class="btn" type="submit" style="padding:6px 14px">Search</button>
-</form>
+
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:16px;">
+  <div>
+    <h2>Applications &mdash; {{ status }}</h2>
+    <p style="color:var(--text-muted);font-size:13.5px;margin-bottom:0;">
+      <a href="/admin/dashboard" style="color:var(--accent);text-decoration:none;"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
+    </p>
+  </div>
+  <form method="get" style="display:flex;gap:8px;align-items:center;">
+    <input type="text" name="mobile" placeholder="Search by mobile..." value="{{ mobile or '' }}" style="max-width:200px;padding:7px 12px;font-size:13px;">
+    <button class="btn btn-secondary" type="submit" style="padding:7px 14px;font-size:13px;"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+  </form>
+</div>
+
 <table class="tbl">
-<tr><th>ID</th><th>Application No</th><th>Name</th><th>Mobile</th><th>Block</th>
-<th>Status</th><th>Submitted</th><th></th></tr>
-{% for r in rows %}
-<tr>
-  <td>{{ r[0] }}</td><td>{{ r[1] }}</td><td>{{ r[2] }}</td><td>{{ r[3] }}</td>
-  <td>{{ r[4] }}</td><td>{{ r[5] }}</td><td>{{ r[6] }}</td>
-  <td><a href="/admin/application/{{ r[0] }}">View</a></td>
-</tr>
-{% endfor %}
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Application No</th>
+      <th>Applicant Name</th>
+      <th>Mobile</th>
+      <th>Block</th>
+      <th>Status</th>
+      <th>Submitted</th>
+      <th style="text-align:right;">Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td style="color:var(--text-muted);font-variant-numeric:tabular-nums;">{{ r[0] }}</td>
+      <td><strong>{{ r[1] }}</strong></td>
+      <td>{{ r[2] }}</td>
+      <td style="font-family:monospace;font-size:12.5px;">{{ r[3] }}</td>
+      <td>{{ r[4] }}</td>
+      <td>
+        <span style="display:inline-block;padding:2px 8px;font-size:11px;font-weight:600;border-radius:12px;background:{% if r[5] == 'PENDING' %}var(--warning-soft);color:var(--warning){% elif r[5] in ('APPROVED', 'DEEMED_APPROVED') %}var(--success-soft);color:var(--success){% elif r[5] == 'REJECTED' %}var(--danger-soft);color:var(--danger){% else %}#f1f5f9;color:var(--text-muted){% endif %};">
+          {{ r[5] }}
+        </span>
+      </td>
+      <td style="font-size:12px;color:var(--text-muted);">{{ r[6].strftime('%d/%m/%Y %H:%M') if r[6] else '' }}</td>
+      <td style="text-align:right;">
+        <a href="/admin/application/{{ r[0] }}" class="btn btn-secondary" style="padding:4px 10px;font-size:12px;text-decoration:none;">
+          View &rarr;
+        </a>
+      </td>
+    </tr>
+    {% else %}
+    <tr>
+      <td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted);">No applications found matching criteria.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
 </table>
-<p>
-{% if page > 1 %}<a href="?status={{ status }}&page={{ page - 1 }}">&laquo; Previous</a>{% endif %}
-&nbsp;<a href="?status={{ status }}&page={{ page + 1 }}">Next &raquo;</a>
-</p>
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;font-size:13px;">
+  <div>
+    {% if page > 1 %}
+    <a href="?status={{ status }}&page={{ page - 1 }}" class="btn btn-secondary" style="padding:6px 14px;font-size:12.5px;">&larr; Previous Page</a>
+    {% endif %}
+  </div>
+  <div style="color:var(--text-muted);">Page {{ page }}</div>
+  <div>
+    <a href="?status={{ status }}&page={{ page + 1 }}" class="btn btn-secondary" style="padding:6px 14px;font-size:12.5px;">Next Page &rarr;</a>
+  </div>
+</div>
+
 {% endblock %}

@@ -1,12 +1,37 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Application Status Portal</h2>
-<form method="post">
-  <label>Mobile Number</label>
-  <input type="text" name="mobile" maxlength="10">
-  <label>Password</label>
-  <input type="password" name="password">
-  <p><button class="btn" type="submit">Login</button></p>
-</form>
-<p class="note"><a href="/status/reset">Forgot password?</a></p>
+
+<div style="max-width:460px;margin:0 auto;">
+  <h2>Check Application Status</h2>
+  <p style="color:var(--text-muted);font-size:13.5px;margin-bottom:24px;">
+    Track your pension application or download your official PDF acknowledgment receipt.
+  </p>
+
+  <form method="post" style="display:flex;flex-direction:column;gap:14px;">
+    <div>
+      <label for="mobile"><i class="fa-solid fa-phone" style="color:var(--text-muted);margin-right:4px;"></i> Mobile Number</label>
+      <input type="text" id="mobile" name="mobile" maxlength="10" placeholder="10-digit registered mobile number" required autofocus>
+    </div>
+
+    <div>
+      <label for="password"><i class="fa-solid fa-key" style="color:var(--text-muted);margin-right:4px;"></i> Password</label>
+      <input type="password" id="password" name="password" placeholder="Date of birth as DDMMYYYY (e.g. 15081954)" required>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">
+        Your password is set to your date of birth as DDMMYYYY per department circular.
+      </div>
+    </div>
+
+    <div style="margin-top:10px;">
+      <button class="btn" type="submit" style="width:100%;padding:11px;font-size:14px;">
+        <i class="fa-solid fa-arrow-right-to-bracket"></i> Login to Status Portal
+      </button>
+    </div>
+  </form>
+
+  <div style="border-top:1px solid var(--border);margin-top:24px;padding-top:16px;display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+    <a href="/status/reset" style="color:var(--accent);text-decoration:none;"><i class="fa-solid fa-circle-question"></i> Forgot password?</a>
+    <a href="/apply" style="color:var(--text-muted);text-decoration:none;">New applicant? Apply here &rarr;</a>
+  </div>
+</div>
+
 {% endblock %}

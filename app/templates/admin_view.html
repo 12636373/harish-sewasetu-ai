@@ -1,43 +1,101 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Application {{ a[0] }}</h2>
-<p><a href="/admin/applications">&laquo; Back to list</a></p>
-<table class="tbl" style="max-width:640px">
-  <tr><th>Applicant Name</th><td>{{ a[1] }}</td></tr>
-  <tr><th>Mobile</th><td>{{ a[2] }}</td></tr>
-  <tr><th>Date of Birth</th><td>{{ a[3] }}</td></tr>
-  <tr><th>Gender</th><td>{{ a[4] }}</td></tr>
-  <tr><th>Marital Status</th><td>{{ a[5] }}</td></tr>
-  <tr><th>Village</th><td>{{ a[6] }}</td></tr>
-  <tr><th>Block</th><td>{{ a[7] }}</td></tr>
-  <tr><th>Bank Account</th><td>{{ a[8] }}</td></tr>
-  <tr><th>IFSC</th><td>{{ a[9] }}</td></tr>
-  <tr><th>Document</th><td>{{ a[10] or '-' }}</td></tr>
-  <tr><th>Status</th><td><b>{{ a[11] }}</b></td></tr>
-  <tr><th>Submitted</th><td>{{ a[12] }}</td></tr>
-  <tr><th>Decided</th><td>{{ a[13] or '-' }} {% if a[14] %}by {{ a[14] }}{% endif %}</td></tr>
-</table>
+
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:16px;">
+  <div>
+    <h2>Application {{ a[0] }}</h2>
+    <p style="color:var(--text-muted);font-size:13.5px;margin-bottom:0;">
+      <a href="/admin/applications" style="color:var(--accent);text-decoration:none;"><i class="fa-solid fa-arrow-left"></i> Back to Queue</a>
+    </p>
+  </div>
+  <div>
+    <span style="display:inline-block;padding:6px 14px;font-size:12.5px;font-weight:700;border-radius:20px;background:{% if a[11] == 'PENDING' %}var(--warning-soft);color:var(--warning){% elif a[11] in ('APPROVED', 'DEEMED_APPROVED') %}var(--success-soft);color:var(--success){% elif a[11] == 'REJECTED' %}var(--danger-soft);color:var(--danger){% else %}#f1f5f9;color:var(--text-muted){% endif %};">
+      {{ a[11] }}
+    </span>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:24px;margin-bottom:28px;">
+  <!-- Personal & Territorial Details -->
+  <div style="background:#f8fafc;border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.05em;margin-bottom:12px;">
+      <i class="fa-solid fa-user" style="color:var(--accent);margin-right:4px;"></i> Applicant Details
+    </div>
+    <table style="width:100%;font-size:13.5px;border-collapse:collapse;">
+      <tr><td style="color:var(--text-muted);padding:6px 0;">Full Name:</td><td><strong>{{ a[1] }}</strong></td></tr>
+      <tr><td style="color:var(--text-muted);padding:6px 0;">Mobile:</td><td style="font-family:monospace;">{{ a[2] }}</td></tr>
+      <tr><td style="color:var(--text-muted);padding:6px 0;">Date of Birth:</td><td>{{ a[3].strftime('%d/%m/%Y') if a[3] else '-' }}</td></tr>
+      <tr><td style="color:var(--text-muted);padding:6px 0;">Gender / Status:</td><td>{{ a[4] or '-' }} &middot; {{ a[5] or '-' }}</td></tr>
+      <tr><td style="color:var(--text-muted);padding:6px 0;">Village:</td><td>{{ a[6] or '-' }}</td></tr>
+      <tr><td style="color:var(--text-muted);padding:6px 0;">Block:</td><td><strong>{{ a[7] or '-' }}</strong></td></tr>
+    </table>
+  </div>
+
+  <!-- Bank & Verification Details -->
+  <div style="background:#f8fafc;border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.05em;margin-bottom:12px;">
+      <i class="fa-solid fa-building-columns" style="color:var(--accent);margin-right:4px;"></i> Bank &amp; Documents
+    </div>
+    <table style="width:100%;font-size:13.5px;border-collapse:collapse;">
+      <tr><td style="color:var(--text-muted);padding:6px 0;">Bank Account:</td><td style="font-family:monospace;">{{ a[8] or '-' }}</td></tr>
+      <tr><td style="color:var(--text-muted);padding:6px 0;">IFSC Code:</td><td style="font-family:monospace;"><strong>{{ a[9] or '-' }}</strong></td></tr>
+      <tr><td style="color:var(--text-muted);padding:6px 0;">Age Proof Document:</td><td style="font-size:12px;font-family:monospace;word-break:break-all;">{{ a[10] or '-' }}</td></tr>
+      <tr><td style="color:var(--text-muted);padding:6px 0;">Submitted:</td><td style="font-size:12px;">{{ a[12].strftime('%d/%m/%Y %H:%M') if a[12] else '-' }}</td></tr>
+      <tr><td style="color:var(--text-muted);padding:6px 0;">Decision:</td><td style="font-size:12px;">{{ a[13].strftime('%d/%m/%Y %H:%M') if a[13] else 'Pending' }} {% if a[14] %}(by {{ a[14] }}){% endif %}</td></tr>
+    </table>
+  </div>
+</div>
+
 {% if a[11] == 'PENDING' %}
-<h3>Decision</h3>
-<form method="post" action="/admin/approve/{{ app_id }}" style="display:inline">
-  <input type="text" name="note" placeholder="Note (optional)" style="max-width:300px">
-  <button class="btn" type="submit">Approve</button>
-</form>
-&nbsp;
-<form method="post" action="/admin/reject/{{ app_id }}" style="display:inline">
-  <input type="text" name="note" placeholder="Reason for rejection" style="max-width:300px">
-  <button class="btn" style="background:#a33" type="submit">Reject</button>
-</form>
+<div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius-md);padding:22px;margin-bottom:28px;">
+  <h3 style="margin-top:0;"><i class="fa-solid fa-gavel" style="color:var(--accent);"></i> Adjudicate Case</h3>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;">
+    <!-- Approve Form -->
+    <form method="post" action="/admin/approve/{{ app_id }}" style="flex:1;min-width:280px;background:#f0fdf4;border:1px solid rgba(5,150,105,0.25);border-radius:var(--radius-sm);padding:14px;">
+      <div style="font-weight:600;font-size:13px;color:var(--success);margin-bottom:8px;">Approve Application</div>
+      <input type="text" name="note" placeholder="Verification remarks (e.g. Verified Voter ID & IFSC)" required style="width:100%;font-size:13px;padding:8px 12px;margin-bottom:10px;">
+      <button class="btn" type="submit" style="background:var(--success);width:100%;font-size:13px;padding:8px 14px;">
+        <i class="fa-solid fa-check"></i> Approve Pension
+      </button>
+    </form>
+
+    <!-- Reject Form -->
+    <form method="post" action="/admin/reject/{{ app_id }}" style="flex:1;min-width:280px;background:#fef2f2;border:1px solid rgba(220,38,38,0.25);border-radius:var(--radius-sm);padding:14px;">
+      <div style="font-weight:600;font-size:13px;color:var(--danger);margin-bottom:8px;">Reject Application</div>
+      <input type="text" name="note" placeholder="Mandatory rejection reason (sent by SMS to citizen)" required style="width:100%;font-size:13px;padding:8px 12px;margin-bottom:10px;">
+      <button class="btn" type="submit" style="background:var(--danger);width:100%;font-size:13px;padding:8px 14px;">
+        <i class="fa-solid fa-xmark"></i> Reject Application
+      </button>
+    </form>
+  </div>
+</div>
 {% endif %}
-<h3>Audit trail</h3>
+
+<!-- Audit Trail -->
+<h3><i class="fa-solid fa-timeline" style="color:var(--accent);"></i> Audit Trail</h3>
 {% if audit %}
-<table class="tbl" style="max-width:640px">
-<tr><th>When</th><th>Action</th><th>By</th><th>Note</th></tr>
-{% for at, action, actor, note in audit %}
-<tr><td>{{ at }}</td><td>{{ action }}</td><td>{{ actor }}</td><td>{{ note or '' }}</td></tr>
-{% endfor %}
+<table class="tbl">
+  <thead>
+    <tr>
+      <th>Timestamp</th>
+      <th>Action</th>
+      <th>Actor</th>
+      <th>Remarks / Justification</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for at, action, actor, note in audit %}
+    <tr>
+      <td style="font-size:12px;color:var(--text-muted);font-variant-numeric:tabular-nums;">{{ at.strftime('%d/%m/%Y %H:%M:%S') if at else '-' }}</td>
+      <td><strong>{{ action }}</strong></td>
+      <td style="font-family:monospace;font-size:12.5px;">{{ actor }}</td>
+      <td>{{ note or '-' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
 </table>
 {% else %}
-<p class="note">No audit entries (application predates audit logging).</p>
+<p class="note" style="background:#f8fafc;padding:12px 16px;border-radius:var(--radius-sm);border:1px solid var(--border);">No audit entries recorded for this application.</p>
 {% endif %}
+
 {% endblock %}

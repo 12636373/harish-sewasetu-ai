@@ -1,47 +1,93 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Program tokens</h2>
-<p><a href="/admin/dashboard">&laquo; Dashboard</a></p>
-<p class="note">Long-lived tokens for unattended programs acting as a block officer. For
-applications used by a person, the person signs in and consents through the portal's OAuth
-flow instead (see README).</p>
+
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:16px;">
+  <div>
+    <h2>Program Tokens &amp; Connected Clients</h2>
+    <p style="color:var(--text-muted);font-size:13.5px;margin-bottom:0;">
+      <a href="/admin/dashboard" style="color:var(--accent);text-decoration:none;"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
+    </p>
+  </div>
+</div>
+
+<p style="color:var(--text-muted);font-size:13.5px;margin-bottom:24px;">
+  Long-lived OAuth 2.1 tokens for unattended background jobs acting as a block officer. For user-interactive AI assistants, officers sign in directly via <code>/oauth/authorize</code>.
+</p>
+
 {% if token %}
-<p>New token (shown once):</p>
-<pre style="background:#f4f4f4;padding:12px;border:1px solid #ccd;word-break:break-all;white-space:pre-wrap">{{ token }}</pre>
+<div style="background:#f0fdf4;border:1px solid rgba(5,150,105,0.3);border-radius:var(--radius-md);padding:18px;margin-bottom:24px;">
+  <div style="font-weight:600;font-size:13px;color:var(--success);margin-bottom:6px;">Newly Issued Program Token (Shown Once):</div>
+  <pre style="background:#0f172a;color:#f8fafc;padding:12px;border-radius:var(--radius-sm);word-break:break-all;white-space:pre-wrap;font-size:12px;font-family:monospace;">{{ token }}</pre>
+</div>
 {% endif %}
-<form method="post">
-  <label>Label</label>
-  <input type="text" name="label" placeholder="e.g. nightly reconciliation job">
-  <label>Audience (the service this token is for; its canonical URL)</label>
-  <input type="text" name="audience" placeholder="{{ issuer }}">
-  <label>Valid for (days)</label>
-  <input type="text" name="days" value="90" style="max-width:80px">
-  <p><button class="btn" type="submit">Issue token</button></p>
-</form>
-<h3>Issued program tokens</h3>
-<table class="tbl" style="max-width:860px">
-<tr><th>Label</th><th>Subject</th><th>Audience</th><th>Issued by</th><th>Created</th><th>Expires</th></tr>
-{% for l, s, a, b, c, e in rows %}
-<tr><td>{{ l }}</td><td>{{ s }}</td><td>{{ a }}</td><td>{{ b }}</td><td>{{ c }}</td><td>{{ e }}</td></tr>
-{% endfor %}
+
+<div style="background:#f8fafc;border:1px solid var(--border);border-radius:var(--radius-md);padding:22px;margin-bottom:32px;">
+  <h3 style="margin-top:0;"><i class="fa-solid fa-plus" style="color:var(--accent);font-size:13px;"></i> Issue New Program Token</h3>
+  <form method="post" style="display:flex;flex-direction:column;gap:12px;max-width:520px;margin-top:14px;">
+    <div>
+      <label>Token Description / Label</label>
+      <input type="text" name="label" placeholder="e.g. nightly reconciliation job" required>
+    </div>
+    <div>
+      <label>Audience / Target Resource</label>
+      <input type="text" name="audience" placeholder="{{ issuer }}" value="{{ issuer }}">
+    </div>
+    <div>
+      <label>Validity Period (Days)</label>
+      <input type="text" name="days" value="90" style="max-width:100px;">
+    </div>
+    <div style="margin-top:8px;">
+      <button class="btn" type="submit"><i class="fa-solid fa-key"></i> Issue Token</button>
+    </div>
+  </form>
+</div>
+
+<h3>Issued Program Tokens</h3>
+<table class="tbl">
+  <thead>
+    <tr><th>Label</th><th>Subject</th><th>Audience</th><th>Issued by</th><th>Created</th><th>Expires</th></tr>
+  </thead>
+  <tbody>
+    {% for l, s, a, b, c, e in rows %}
+    <tr>
+      <td><strong>{{ l }}</strong></td>
+      <td style="font-family:monospace;font-size:12px;">{{ s }}</td>
+      <td style="font-size:12px;color:var(--text-muted);">{{ a }}</td>
+      <td>{{ b }}</td>
+      <td style="font-size:12px;color:var(--text-muted);">{{ c.strftime('%d/%m/%Y') if c else '-' }}</td>
+      <td style="font-size:12px;color:var(--text-muted);">{{ e.strftime('%d/%m/%Y') if e else '-' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted);">No program tokens issued yet.</td></tr>
+    {% endfor %}
+  </tbody>
 </table>
-<h3>Your current officer sign-ins (through applications)</h3>
+
+<h3>Connected Applications &amp; Grants</h3>
 {% if grants %}
-<table class="tbl" style="max-width:720px">
-<tr><th>Application</th><th>Signed in</th><th>Ends</th><th></th></tr>
-{% for h, name, cid, c, e in grants %}
-<tr><td>{{ name or cid }}</td><td>{{ c }}</td><td>{{ e }}</td>
-<td><form method="post" style="display:inline"><input type="hidden" name="revoke_subject" value="{{ subject }}">
-<input type="hidden" name="token_hash" value="{{ h }}">
-<button class="btn" style="background:#a33;padding:4px 10px" type="submit">End now</button></form></td></tr>
-{% endfor %}
+<table class="tbl">
+  <thead>
+    <tr><th>Application</th><th>Signed in</th><th>Expires</th><th style="text-align:right;">Action</th></tr>
+  </thead>
+  <tbody>
+    {% for h, name, cid, c, e in grants %}
+    <tr>
+      <td><strong>{{ name or cid }}</strong></td>
+      <td style="font-size:12px;color:var(--text-muted);">{{ c.strftime('%d/%m/%Y %H:%M') if c else '-' }}</td>
+      <td style="font-size:12px;color:var(--text-muted);">{{ e.strftime('%d/%m/%Y %H:%M') if e else '-' }}</td>
+      <td style="text-align:right;">
+        <form method="post" style="display:inline">
+          <input type="hidden" name="revoke_subject" value="{{ subject }}">
+          <input type="hidden" name="token_hash" value="{{ h }}">
+          <button class="btn" style="background:var(--danger);padding:4px 10px;font-size:11.5px;" type="submit">Revoke</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
 </table>
-{% else %}<p class="note">None.</p>{% endif %}
-<h3>Applications that have registered</h3>
-<table class="tbl" style="max-width:640px">
-<tr><th>Name</th><th>Registration</th><th>Since</th></tr>
-{% for n, k, c in clients %}
-<tr><td>{{ n }}</td><td>{{ k }}</td><td>{{ c }}</td></tr>
-{% endfor %}
-</table>
+{% else %}
+<p class="note" style="background:#f8fafc;padding:12px 16px;border-radius:var(--radius-sm);border:1px solid var(--border);">No active application grants.</p>
+{% endif %}
+
 {% endblock %}

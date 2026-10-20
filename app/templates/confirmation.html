@@ -1,12 +1,32 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Application Submitted</h2>
-<p>Your application has been received and is pending departmental verification.</p>
-<table class="tbl" style="max-width:480px">
-  <tr><th>Application Number</th><td><b>{{ app_no }}</b></td></tr>
-</table>
-<p class="note">Please note down your Application Number. You can check your
-application status on the <a href="/status">status portal</a> using your mobile
-number and password (your date of birth in DDMMYYYY format).</p>
-<p><a href="/ack/{{ app_id }}.pdf"><button class="btn">Download Acknowledgment (PDF)</button></a></p>
+
+<div style="max-width:540px;margin:0 auto;text-align:center;">
+  <div style="width:52px;height:52px;border-radius:50%;background:var(--success-soft);color:var(--success);display:inline-flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:16px;">
+    <i class="fa-solid fa-circle-check"></i>
+  </div>
+  <h2>Application Successfully Submitted</h2>
+  <p style="color:var(--text-muted);font-size:14px;margin-bottom:24px;">
+    Your Old Age Pension application has been officially recorded in the portal and queued for Block Welfare Officer review.
+  </p>
+
+  <div style="background:#f8fafc;border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;margin-bottom:24px;text-align:left;">
+    <div style="font-size:11.5px;font-weight:600;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.05em;">Your Application Number</div>
+    <div style="font-size:24px;font-weight:700;color:var(--accent);letter-spacing:0.02em;margin:4px 0 12px;font-family:monospace;">{{ app_no }}</div>
+    <div style="font-size:12.5px;color:var(--text-body);border-top:1px solid var(--border);padding-top:12px;">
+      <i class="fa-solid fa-key" style="color:var(--text-muted);margin-right:4px;"></i>
+      <strong>Status Portal Login:</strong> Track at <code>/status</code> using your mobile number and your date of birth as password (<code>DDMMYYYY</code>).
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+    <a href="/ack/{{ app_id }}.pdf" class="btn" target="_blank" style="padding:10px 20px;">
+      <i class="fa-solid fa-file-pdf"></i> Download Receipt (PDF)
+    </a>
+    <a href="/status" class="btn btn-secondary" style="padding:10px 20px;">
+      <i class="fa-solid fa-magnifying-glass"></i> Go to Status Portal
+    </a>
+  </div>
+</div>
+
 {% endblock %}

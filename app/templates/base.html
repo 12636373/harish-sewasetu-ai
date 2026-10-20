@@ -2,45 +2,424 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Sewa Setu - Old Age Pension Portal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sewa Setu — Old Age Pension Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-body{font-family:Arial,Helvetica,sans-serif;margin:0;background:#f0f2f5;color:#222}
-.header{background:#0b3d6e;color:#fff;padding:14px 28px}
-.header h1{margin:0;font-size:22px}
-.header .sub{font-size:13px;color:#cfe0f3}
-.band{background:#f7931e;height:5px}
-.container{max-width:860px;margin:24px auto;background:#fff;padding:28px;
-border:1px solid #d7dbe0;box-shadow:0 1px 3px rgba(0,0,0,.08)}
-.btn{background:#0b3d6e;color:#fff;border:none;padding:10px 22px;font-size:15px;cursor:pointer}
-.btn:hover{background:#0d4a85}
-label{display:block;margin:12px 0 4px;font-weight:bold;font-size:14px}
-input[type=text],input[type=password],select{width:100%;max-width:420px;padding:8px;
-border:1px solid #aab;font-size:14px}
-.flash{background:#fdecea;border:1px solid #e57373;color:#a33;padding:10px 14px;margin:14px 0}
-.note{font-size:13px;color:#555}
-.footer{max-width:860px;margin:10px auto 40px;font-size:12px;color:#666;text-align:center}
-.footer a{color:#0b3d6e;margin:0 8px}
-table.tbl{border-collapse:collapse;width:100%}
-table.tbl td,table.tbl th{border:1px solid #ccd;padding:7px 10px;font-size:14px;text-align:left}
-.steps{font-size:13px;color:#777;margin-bottom:18px}
-.steps b{color:#0b3d6e}
+:root {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --border-focus: #3b82f6;
+  --text-main: #0f172a;
+  --text-body: #334155;
+  --text-muted: #64748b;
+  --primary: #0f172a;
+  --primary-hover: #1e293b;
+  --accent: #2563eb;
+  --accent-soft: #eff6ff;
+  --success: #059669;
+  --success-soft: #ecfdf5;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --warning: #d97706;
+  --warning-soft: #fffbeb;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg);
+  color: var(--text-body);
+  line-height: 1.6;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header & Navigation */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(8px);
+}
+
+.header-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--text-main);
+}
+
+.brand-logo {
+  width: 38px;
+  height: 38px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 17px;
+  box-shadow: var(--shadow-sm);
+}
+
+.brand-text h1 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.brand-text .sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+nav.main-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+nav.main-nav a {
+  text-decoration: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+nav.main-nav a:hover {
+  color: var(--text-main);
+  background: #f1f5f9;
+}
+
+nav.main-nav a.highlight {
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+nav.main-nav a.admin-btn {
+  border: 1px solid var(--border);
+  color: var(--text-main);
+}
+
+nav.main-nav a.admin-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+/* Main Container Card */
+main.container {
+  max-width: 920px;
+  width: 100%;
+  margin: 36px auto;
+  padding: 0 20px;
+  flex: 1;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 36px 40px;
+  box-shadow: var(--shadow-sm);
+}
+
+@media (max-width: 640px) {
+  .card { padding: 24px 20px; }
+  .header-inner { padding: 12px 16px; }
+}
+
+/* Headings & Typography */
+h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+  margin-bottom: 14px;
+}
+
+h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 24px 0 12px;
+  letter-spacing: -0.01em;
+}
+
+p {
+  margin-bottom: 14px;
+  font-size: 14.5px;
+  color: var(--text-body);
+}
+
+/* Flash alerts */
+.flash {
+  background: var(--danger-soft);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  color: var(--danger);
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  margin-bottom: 20px;
+  font-size: 13.5px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Form Styling */
+label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 16px 0 6px;
+}
+
+input[type=text],
+input[type=password],
+input[type=file],
+select,
+textarea {
+  width: 100%;
+  max-width: 440px;
+  padding: 9px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text-main);
+  background: #ffffff;
+  transition: all 0.15s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--primary);
+  color: #ffffff;
+  border: 1px solid transparent;
+  padding: 9px 18px;
+  font-size: 13.5px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn:hover {
+  background: var(--primary-hover);
+  color: #fff;
+}
+
+.btn-secondary {
+  background: #ffffff;
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-secondary:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+/* Tables */
+table.tbl {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin: 16px 0 24px;
+  font-size: 13.5px;
+}
+
+table.tbl th {
+  background: #f8fafc;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+table.tbl td {
+  padding: 11px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  color: var(--text-body);
+}
+
+table.tbl tr:last-child td {
+  border-bottom: none;
+}
+
+table.tbl tr:hover td {
+  background: #f8fafc;
+}
+
+/* Progress stepper for application */
+.steps {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-bottom: 22px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.steps b {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.note {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+ol.note {
+  margin: 10px 0 16px 20px;
+  line-height: 1.8;
+}
+
+/* Footer */
+footer {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 24px 20px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.footer-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.footer-links a:hover {
+  color: var(--text-main);
+}
 </style>
 </head>
 <body>
-<div class="header">
-  <h1>Sewa Setu &mdash; Old Age Pension Portal</h1>
-  <div class="sub">Department of Social Welfare &middot; Government of Purvanchal</div>
-</div>
-<div class="band"></div>
-<div class="container">
-{% with messages = get_flashed_messages() %}
-  {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
-{% endwith %}
-{% block content %}{% endblock %}
-</div>
-<div class="footer">
-  <a href="/">Home</a> | <a href="/about">About the Scheme</a> | <a href="/status">Application Status</a> | <a href="/eval-dashboard" style="font-weight:bold;color:#0d47a1;">Evaluation Dashboard</a> | <a href="/mcp/citizen">Citizen MCP</a> | <a href="/mcp/officer">Officer MCP</a> | <a href="/admin">Admin Login</a><br>
-  Department of Social Welfare, Government of Purvanchal.
-</div>
+
+<header>
+  <div class="header-top-rule" style="height:3px;background:var(--accent);"></div>
+  <div class="header-inner">
+    <a href="/" class="brand">
+      <div class="brand-logo"><i class="fa-solid fa-shield-heart"></i></div>
+      <div class="brand-text">
+        <h1>Sewa Setu</h1>
+        <div class="sub">Department of Social Welfare &middot; Government of Purvanchal</div>
+      </div>
+    </a>
+    <nav class="main-nav">
+      <a href="/"><i class="fa-solid fa-house"></i> Home</a>
+      <a href="/about"><i class="fa-solid fa-circle-info"></i> Scheme</a>
+      <a href="/status"><i class="fa-solid fa-clock-rotate-left"></i> Status</a>
+      <a href="/eval-dashboard" class="highlight"><i class="fa-solid fa-chart-line"></i> Eval Dashboard</a>
+      <a href="/mcp/citizen"><i class="fa-solid fa-robot"></i> Citizen MCP</a>
+      <a href="/mcp/officer"><i class="fa-solid fa-user-shield"></i> Officer MCP</a>
+      <a href="/admin" class="admin-btn"><i class="fa-solid fa-lock"></i> Admin</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <div class="card">
+    {% with messages = get_flashed_messages() %}
+      {% for m in messages %}
+        <div class="flash"><i class="fa-solid fa-circle-exclamation"></i> {{ m }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="/">Home</a> &bull;
+    <a href="/about">About the Scheme</a> &bull;
+    <a href="/status">Application Status</a> &bull;
+    <a href="/eval-dashboard" style="font-weight:600;color:var(--accent);">Eval Dashboard</a> &bull;
+    <a href="/mcp/citizen">Citizen MCP</a> &bull;
+    <a href="/mcp/officer">Officer MCP</a> &bull;
+    <a href="/__gateway/" target="_blank">SMS Gateway</a> &bull;
+    <a href="/admin">Departmental Login</a>
+  </div>
+  <div>Department of Social Welfare &middot; Government of Purvanchal &middot; Built on Open Standards (OAuth 2.1 &amp; MCP)</div>
+</footer>
+
 </body>
 </html>

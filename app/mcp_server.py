@@ -1171,55 +1171,175 @@ DOCS_HTML_TEMPLATE = """<!DOCTYPE html>
   <meta charset="utf-8">
   <title>{{ server_title }} — Sewa Setu MCP Server</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 24px; background: #f8f9fa; color: #212529; }
-    .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-    h1 { color: #0d3b66; margin-top: 0; font-size: 26px; border-bottom: 2px solid #e9ecef; padding-bottom: 12px; }
-    .badge { display: inline-block; padding: 4px 10px; font-size: 13px; font-weight: 600; border-radius: 4px; background: #e3f2fd; color: #0d47a1; margin-bottom: 16px; }
-    .badge.officer { background: #fce4ec; color: #880e4f; }
-    pre { background: #1e293b; color: #f8fafc; padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 14px; }
-    code { font-family: Consolas, Monaco, "Courier New", monospace; }
-    .tool-box { border: 1px solid #dee2e6; border-radius: 6px; padding: 16px; margin-bottom: 16px; background: #fafafa; }
-    .tool-name { font-size: 16px; font-weight: 700; color: #1a3c6e; margin-bottom: 6px; }
-    .tool-desc { font-size: 14px; color: #495057; margin-bottom: 10px; }
-    .nav-links a { color: #0d47a1; text-decoration: none; font-weight: 500; margin-right: 16px; }
-    .nav-links a:hover { text-decoration: underline; }
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --text-main: #0f172a;
+      --text-body: #334155;
+      --text-muted: #64748b;
+      --primary: #0f172a;
+      --accent: #2563eb;
+      --accent-soft: #eff6ff;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.04);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text-body);
+      line-height: 1.6;
+      padding: 32px 20px;
+    }
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 36px 40px;
+      box-shadow: var(--shadow-sm);
+    }
+    @media (max-width: 640px) { .container { padding: 24px 20px; } }
+    .nav-links {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--text-main); }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 20px;
+      background: #f1f5f9;
+      color: var(--text-main);
+      margin-bottom: 18px;
+      border: 1px solid var(--border);
+    }
+    .badge.officer { background: #fdf2f8; color: #9d174d; border-color: rgba(157,23,77,0.2); }
+    .badge.citizen { background: var(--accent-soft); color: var(--accent); border-color: rgba(37,99,235,0.2); }
+    h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-main);
+      margin: 24px 0 10px;
+      letter-spacing: -0.01em;
+    }
+    p { font-size: 14px; margin-bottom: 12px; color: var(--text-body); }
+    pre {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 14px 16px;
+      border-radius: var(--radius-sm);
+      overflow-x: auto;
+      font-size: 13px;
+      font-family: Consolas, Monaco, monospace;
+      margin: 10px 0 16px;
+    }
+    code { font-family: Consolas, Monaco, monospace; font-size: 13px; }
+    .tool-box {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+      margin-bottom: 14px;
+      background: #fafbfc;
+    }
+    .tool-name {
+      font-size: 14.5px;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tool-name code { color: var(--accent); }
+    .tool-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
+    details { font-size: 12.5px; }
+    details summary {
+      cursor: pointer;
+      color: var(--text-muted);
+      font-weight: 500;
+      user-select: none;
+    }
+    details summary:hover { color: var(--text-main); }
   </style>
 </head>
 <body>
 <div class="container">
-  <div class="nav-links" style="margin-bottom: 16px;">
-    <a href="/">← Return to Portal Home</a>
-    <a href="/eval-dashboard">Evaluation Dashboard</a>
-    <a href="/admin">Departmental Login</a>
+  <div class="nav-links">
+    <a href="/"><i class="fa-solid fa-arrow-left"></i> Return to Portal Home</a>
+    <a href="/eval-dashboard"><i class="fa-solid fa-chart-line"></i> Evaluation Dashboard</a>
+    <a href="/admin"><i class="fa-solid fa-lock"></i> Departmental Login</a>
+    <a href="/about"><i class="fa-solid fa-circle-info"></i> About Scheme</a>
   </div>
 
   <h1>{{ server_title }}</h1>
-  <div class="badge {{ 'officer' if role == 'officer' else 'citizen' }}">Role: {{ role }} | Protocol: Model Context Protocol (2024-11-05)</div>
+  <div class="badge {{ 'officer' if role == 'officer' else 'citizen' }}">
+    <i class="fa-solid fa-shield-halved"></i> Role: {{ role }} &middot; Streamable HTTP (MCP 2024-11-05)
+  </div>
 
-  <p>This is the official streamable HTTP Model Context Protocol (MCP) endpoint for <strong>{{ 'Senior Citizen Applicants' if role == 'citizen' else 'Block Welfare Officers' }}</strong> in the Sewa Setu pension portal.</p>
+  <p>
+    This is the official streamable HTTP Model Context Protocol (MCP) endpoint for
+    <strong>{{ 'Senior Citizen Applicants' if role == 'citizen' else 'Block Welfare Officers' }}</strong>
+    in the Sewa Setu pension portal.
+  </p>
 
   <h3>How to Connect with Claude Code</h3>
   <pre><code>claude mcp add --transport http {{ server_name }} {{ endpoint_url }}</code></pre>
 
   <h3>Authentication</h3>
-  <p>This endpoint is protected by <strong>OAuth 2.1</strong> (RFC 8414 & RFC 9728). Unauthenticated requests receive an HTTP <code>401 Unauthorized</code> challenge with <code>WWW-Authenticate</code> pointing to <code>{{ base_url }}/.well-known/oauth-protected-resource</code>.</p>
+  <p>
+    Protected by <strong>OAuth 2.1</strong> (RFC 8414 &amp; RFC 9728). Unauthenticated requests receive an HTTP
+    <code>401 Unauthorized</code> challenge pointing to <code>{{ base_url }}/.well-known/oauth-protected-resource</code>.
+  </p>
 
   <h3>Available Tools on this Endpoint ({{ tools|length }})</h3>
   {% for tool in tools %}
   <div class="tool-box">
-    <div class="tool-name"><code>{{ tool.name }}</code></div>
+    <div class="tool-name"><i class="fa-solid fa-wrench" style="font-size:12px;color:var(--text-muted);"></i> <code>{{ tool.name }}</code></div>
     <div class="tool-desc">{{ tool.description }}</div>
     <details>
-      <summary style="cursor:pointer;font-size:13px;color:#0d47a1;">View Input Schema</summary>
+      <summary><i class="fa-solid fa-code"></i> View Input JSON Schema</summary>
       <pre style="margin-top:8px;"><code>{{ tool.inputSchema | tojson(indent=2) }}</code></pre>
     </details>
   </div>
   {% endfor %}
 </div>
 </body>
-</html>
-"""
+</html>"""
 
 
 # ---------------------------------------------------------------------------

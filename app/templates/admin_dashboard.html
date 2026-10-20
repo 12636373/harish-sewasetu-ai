@@ -1,26 +1,106 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Dashboard</h2>
-<p><a href="/admin/applications?status=PENDING">Pending</a> |
-<a href="/admin/applications?status=APPROVED">Approved</a> |
-<a href="/admin/applications?status=REJECTED">Rejected</a> |
-<a href="/admin/applications?status=DEEMED_APPROVED">Deemed Approved</a> |
-<a href="/admin/applications?status=WITHDRAWN">Withdrawn</a> |
-<a href="/admin/tokens">Program tokens</a></p>
 
-<h3>Applications by Status</h3>
-<table class="tbl" style="max-width:400px">
-{% for s, c in by_status %}
-<tr><td>{{ s }}</td><td style="text-align:right">{{ c }}</td></tr>
-{% endfor %}
-</table>
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:16px;">
+  <div>
+    <h2>Departmental Dashboard</h2>
+    <p style="color:var(--text-muted);font-size:13.5px;margin-bottom:0;">
+      Old Age Pension Scheme &middot; Block Welfare Officer Queue &middot; Purvanchal RTPS Administration
+    </p>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <a href="/admin/tokens" class="btn btn-secondary" style="font-size:13px;padding:7px 14px;">
+      <i class="fa-solid fa-key"></i> Program Tokens
+    </a>
+    <a href="/admin/applications?status=PENDING" class="btn" style="font-size:13px;padding:7px 14px;">
+      <i class="fa-solid fa-inbox"></i> View Pending Queue
+    </a>
+  </div>
+</div>
 
-<h3 style="color:#a33">Pending beyond {{ sla }}-day SLA: {{ overdue }}</h3>
+<!-- Queue Navigation Filter Pills -->
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;">
+  <a href="/admin/applications?status=PENDING" class="btn btn-secondary" style="font-size:12.5px;padding:6px 14px;">
+    Pending
+  </a>
+  <a href="/admin/applications?status=APPROVED" class="btn btn-secondary" style="font-size:12.5px;padding:6px 14px;">
+    Approved
+  </a>
+  <a href="/admin/applications?status=DEEMED_APPROVED" class="btn btn-secondary" style="font-size:12.5px;padding:6px 14px;">
+    Deemed Approved
+  </a>
+  <a href="/admin/applications?status=REJECTED" class="btn btn-secondary" style="font-size:12.5px;padding:6px 14px;">
+    Rejected
+  </a>
+  <a href="/admin/applications?status=WITHDRAWN" class="btn btn-secondary" style="font-size:12.5px;padding:6px 14px;">
+    Withdrawn
+  </a>
+</div>
 
-<h3>Pending by Block</h3>
-<table class="tbl" style="max-width:400px">
-{% for b, c in by_block %}
-<tr><td>{{ b }}</td><td style="text-align:right">{{ c }}</td></tr>
-{% endfor %}
-</table>
+<!-- SLA Warning Banner if overdue cases exist -->
+{% if overdue > 0 %}
+<div style="background:var(--danger-soft);border:1px solid rgba(220,38,38,0.2);color:var(--danger);padding:14px 18px;border-radius:var(--radius-md);margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <i class="fa-solid fa-triangle-exclamation" style="font-size:18px;"></i>
+    <div>
+      <div style="font-weight:600;font-size:14px;">{{ overdue }} application(s) pending beyond {{ sla }}-day statutory SLA</div>
+      <div style="font-size:12.5px;opacity:0.9;">These applications will be automatically deemed approved by the nightly cron job under the RTPS Act.</div>
+    </div>
+  </div>
+  <a href="/admin/applications?status=PENDING" class="btn" style="background:var(--danger);font-size:12.5px;padding:6px 14px;">
+    Review Overdue Cases
+  </a>
+</div>
+{% endif %}
+
+<!-- Side-by-Side Tables -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:24px;">
+  <div>
+    <h3><i class="fa-solid fa-chart-pie" style="color:var(--accent);"></i> Applications by Status</h3>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>Status</th>
+          <th style="text-align:right;">Count</th>
+          <th style="text-align:right;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s, c in by_status %}
+        <tr>
+          <td>
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:{% if s == 'PENDING' %}var(--warning){% elif s in ('APPROVED', 'DEEMED_APPROVED') %}var(--success){% elif s == 'REJECTED' %}var(--danger){% else %}var(--text-muted){% endif %};"></span>
+            <strong>{{ s }}</strong>
+          </td>
+          <td style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums;">{{ c }}</td>
+          <td style="text-align:right;">
+            <a href="/admin/applications?status={{ s }}" style="color:var(--accent);text-decoration:none;font-size:12.5px;">View &rarr;</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div>
+    <h3><i class="fa-solid fa-map-location-dot" style="color:var(--accent);"></i> Pending Queue by Block</h3>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>Block Jurisdiction</th>
+          <th style="text-align:right;">Pending Cases</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b, c in by_block %}
+        <tr>
+          <td><strong>{{ b }}</strong></td>
+          <td style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text-main);">{{ c }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
 {% endblock %}

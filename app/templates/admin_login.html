@@ -1,11 +1,39 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Departmental Login</h2>
-<form method="post">
-  <label>Username</label>
-  <input type="text" name="username">
-  <label>Password</label>
-  <input type="password" name="password">
-  <p><button class="btn" type="submit">Login</button></p>
-</form>
+
+<div style="max-width:440px;margin:0 auto;">
+  <div style="text-align:center;margin-bottom:24px;">
+    <div style="width:48px;height:48px;border-radius:50%;background:#f1f5f9;color:var(--primary);display:inline-flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:12px;">
+      <i class="fa-solid fa-lock"></i>
+    </div>
+    <h2>Departmental Login</h2>
+    <p style="color:var(--text-muted);font-size:13.5px;">
+      Authorized access for Block Welfare Officers and Department Administrators.
+    </p>
+  </div>
+
+  <form method="post" style="display:flex;flex-direction:column;gap:14px;">
+    <div>
+      <label for="username"><i class="fa-solid fa-user" style="color:var(--text-muted);margin-right:4px;"></i> Officer Username</label>
+      <input type="text" id="username" name="username" placeholder="e.g. admin" required autofocus>
+    </div>
+
+    <div>
+      <label for="password"><i class="fa-solid fa-key" style="color:var(--text-muted);margin-right:4px;"></i> Password</label>
+      <input type="password" id="password" name="password" placeholder="Enter departmental password" required>
+    </div>
+
+    <div style="margin-top:10px;">
+      <button class="btn" type="submit" style="width:100%;padding:11px;font-size:14px;">
+        <i class="fa-solid fa-arrow-right-to-bracket"></i> Sign In to Administrative Portal
+      </button>
+    </div>
+  </form>
+
+  <div style="background:#f8fafc;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-top:24px;font-size:12px;color:var(--text-muted);text-align:center;">
+    <i class="fa-solid fa-shield-halved" style="color:var(--accent);"></i>
+    All administrative decisions are permanently recorded in the legal audit log.
+  </div>
+</div>
+
 {% endblock %}
