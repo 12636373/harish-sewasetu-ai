@@ -1,0 +1,12 @@
+kind: wasmer.io/App.v0
+name: sewasetu-assistant
+package: sewasetu-assistant
+domains:
+  - sewasetu-assistant.wasmer.app
+scaling:
+  mode: single_concurrency
+env:
+  PUBLIC_BASE_URL: https://sewasetu-assistant.wasmer.app
+  ADMIN_USERNAME: admin
+  POSTGRES_DB: sewasetu
+  POSTGRES_USER: sewasetu
