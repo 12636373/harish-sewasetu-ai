@@ -51,7 +51,7 @@ app.secret_key = os.environ.get("SECRET_KEY") or (config.get("app", "secret_key"
 app.config["PERMANENT_SESSION_LIFETIME"] = 7200
 
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD") or (config.get("app", "admin_password", fallback="change-me-before-deploying") if config.has_section("app") else "change-me-before-deploying")
 
 # An applicant may hold at most one application in these states at a time.
 # WITHDRAWN and REJECTED applications do not block a fresh application.
@@ -127,6 +127,38 @@ def get_db():
 
     # Edge / sandbox fallback to self-contained SQLite
     return get_sqlite_db()
+
+
+@app.template_filter("format_date")
+def format_date_filter(val):
+    if not val:
+        return "-"
+    if isinstance(val, (datetime, date)):
+        return val.strftime("%d/%m/%Y")
+    try:
+        parts = str(val).split()[0].split("-")
+        if len(parts) == 3:
+            return f"{parts[2]}/{parts[1]}/{parts[0]}"
+    except Exception:
+        pass
+    return str(val)
+
+
+@app.template_filter("format_datetime")
+def format_datetime_filter(val):
+    if not val:
+        return "-"
+    if isinstance(val, datetime):
+        return val.strftime("%d/%m/%Y %H:%M")
+    if isinstance(val, date):
+        return val.strftime("%d/%m/%Y")
+    try:
+        s = str(val)
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        return dt.strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        pass
+    return str(val)
 
 
 def sanitize(value, maxlen=100):
@@ -486,10 +518,10 @@ def generate_acknowledgment(cur, app_id):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 14)
-    pdf.cell(0, 10, "GOVERNMENT OF PURVANCHAL", ln=1, align="C")
+    pdf.cell(0, 10, "GOVERNMENT OF PURVANCHAL", new_x="LMARGIN", new_y="NEXT", align="C")
     pdf.set_font("Helvetica", "", 11)
-    pdf.cell(0, 8, "Department of Social Welfare", ln=1, align="C")
-    pdf.cell(0, 8, "Old Age Pension Scheme - Acknowledgment", ln=1, align="C")
+    pdf.cell(0, 8, "Department of Social Welfare", new_x="LMARGIN", new_y="NEXT", align="C")
+    pdf.cell(0, 8, "Old Age Pension Scheme - Acknowledgment", new_x="LMARGIN", new_y="NEXT", align="C")
     pdf.ln(4)
     # letterhead rules
     pdf.line(10, 12, 200, 12)
@@ -500,9 +532,9 @@ def generate_acknowledgment(cur, app_id):
     for label, val in zip(labels, row):
         try:
             pdf.cell(60, 8, label, border=1)
-            pdf.cell(0, 8, str(val), border=1, ln=1)
+            pdf.cell(0, 8, str(val), border=1, new_x="LMARGIN", new_y="NEXT")
         except Exception:
-            pdf.cell(0, 8, "?", border=1, ln=1)
+            pdf.cell(0, 8, "?", border=1, new_x="LMARGIN", new_y="NEXT")
     pdf.ln(6)
     pdf.set_font("Helvetica", "I", 9)
     pdf.multi_cell(0, 5, "This is a computer generated acknowledgment. Processing SLA "

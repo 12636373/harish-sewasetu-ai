@@ -19,13 +19,13 @@
   <tbody>
     <tr><th style="width:35%;">Applicant Name</th><td><strong>{{ a[1] }}</strong></td></tr>
     <tr><th>Mobile Number</th><td style="font-family:monospace;">{{ a[2] }}</td></tr>
-    <tr><th>Date of Birth</th><td>{{ a[3].strftime('%d/%m/%Y') if a[3] else '-' }}</td></tr>
+    <tr><th>Date of Birth</th><td>{{ a[3]|format_date }}</td></tr>
     <tr><th>Village &amp; Block</th><td>{{ a[4] or '-' }}, Block: <strong>{{ a[5] or '-' }}</strong></td></tr>
     <tr><th>Bank Account</th><td style="font-family:monospace;">{{ a[6] or '-' }}</td></tr>
     <tr><th>IFSC Code</th><td style="font-family:monospace;"><strong>{{ a[7] or '-' }}</strong></td></tr>
     <tr><th>Current Status</th><td><strong>{{ a[8] }}</strong></td></tr>
-    <tr><th>Submission Date</th><td>{{ a[9].strftime('%d/%m/%Y %H:%M') if a[9] else '-' }}</td></tr>
-    <tr><th>Decision Date</th><td>{{ a[10].strftime('%d/%m/%Y %H:%M') if a[10] else 'Pending Officer Review' }}</td></tr>
+    <tr><th>Submission Date</th><td>{{ a[9]|format_datetime }}</td></tr>
+    <tr><th>Decision Date</th><td>{{ a[10]|format_datetime if a[10] else 'Pending Officer Review' }}</td></tr>
   </tbody>
 </table>
 

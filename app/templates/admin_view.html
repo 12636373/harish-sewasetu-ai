@@ -24,7 +24,7 @@
     <table style="width:100%;font-size:13.5px;border-collapse:collapse;">
       <tr><td style="color:var(--text-muted);padding:6px 0;">Full Name:</td><td><strong>{{ a[1] }}</strong></td></tr>
       <tr><td style="color:var(--text-muted);padding:6px 0;">Mobile:</td><td style="font-family:monospace;">{{ a[2] }}</td></tr>
-      <tr><td style="color:var(--text-muted);padding:6px 0;">Date of Birth:</td><td>{{ a[3].strftime('%d/%m/%Y') if a[3] else '-' }}</td></tr>
+      <tr><td style="color:var(--text-muted);padding:6px 0;">Date of Birth:</td><td>{{ a[3]|format_date }}</td></tr>
       <tr><td style="color:var(--text-muted);padding:6px 0;">Gender / Status:</td><td>{{ a[4] or '-' }} &middot; {{ a[5] or '-' }}</td></tr>
       <tr><td style="color:var(--text-muted);padding:6px 0;">Village:</td><td>{{ a[6] or '-' }}</td></tr>
       <tr><td style="color:var(--text-muted);padding:6px 0;">Block:</td><td><strong>{{ a[7] or '-' }}</strong></td></tr>
@@ -40,8 +40,8 @@
       <tr><td style="color:var(--text-muted);padding:6px 0;">Bank Account:</td><td style="font-family:monospace;">{{ a[8] or '-' }}</td></tr>
       <tr><td style="color:var(--text-muted);padding:6px 0;">IFSC Code:</td><td style="font-family:monospace;"><strong>{{ a[9] or '-' }}</strong></td></tr>
       <tr><td style="color:var(--text-muted);padding:6px 0;">Age Proof Document:</td><td style="font-size:12px;font-family:monospace;word-break:break-all;">{{ a[10] or '-' }}</td></tr>
-      <tr><td style="color:var(--text-muted);padding:6px 0;">Submitted:</td><td style="font-size:12px;">{{ a[12].strftime('%d/%m/%Y %H:%M') if a[12] else '-' }}</td></tr>
-      <tr><td style="color:var(--text-muted);padding:6px 0;">Decision:</td><td style="font-size:12px;">{{ a[13].strftime('%d/%m/%Y %H:%M') if a[13] else 'Pending' }} {% if a[14] %}(by {{ a[14] }}){% endif %}</td></tr>
+      <tr><td style="color:var(--text-muted);padding:6px 0;">Submitted:</td><td style="font-size:12px;">{{ a[12]|format_datetime }}</td></tr>
+      <tr><td style="color:var(--text-muted);padding:6px 0;">Decision:</td><td style="font-size:12px;">{{ a[13]|format_datetime if a[13] else 'Pending' }} {% if a[14] %}(by {{ a[14] }}){% endif %}</td></tr>
     </table>
   </div>
 </div>
@@ -86,7 +86,7 @@
   <tbody>
     {% for at, action, actor, note in audit %}
     <tr>
-      <td style="font-size:12px;color:var(--text-muted);font-variant-numeric:tabular-nums;">{{ at.strftime('%d/%m/%Y %H:%M:%S') if at else '-' }}</td>
+      <td style="font-size:12px;color:var(--text-muted);font-variant-numeric:tabular-nums;">{{ at|format_datetime }}</td>
       <td><strong>{{ action }}</strong></td>
       <td style="font-family:monospace;font-size:12.5px;">{{ actor }}</td>
       <td>{{ note or '-' }}</td>
