@@ -19,6 +19,7 @@ import time
 import base64
 import uuid
 import secrets
+import random
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 from urllib.parse import urlparse
@@ -293,6 +294,29 @@ CITIZEN_TOOLS = [
             "type": "object",
             "properties": {},
             "required": []
+        }
+    },
+    {
+        "name": "raise_grievance",
+        "description": "Register a formal complaint or grievance regarding an application, verification delay, or service delivery under the Purvanchal Right to Public Services (RTPS) Act.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "enum": ["SLA_BREACH", "DOCUMENT_VERIFICATION", "OFFICER_DELAY", "DBT_PAYMENT_FAILURE", "OTHER"],
+                    "description": "Category of grievance"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Detailed explanation of the issue faced by the senior citizen"
+                },
+                "application_no": {
+                    "type": "string",
+                    "description": "Optional application number (e.g. SSP26123456). Defaults to the applicant's active application if omitted."
+                }
+            },
+            "required": ["category", "description"]
         }
     }
 ]
@@ -594,6 +618,45 @@ def execute_citizen_tool(tool_name, args, claims):
                 "acknowledgment_pdf_url": ack_url,
                 "download_path": f"/ack/{app_id}.pdf",
                 "instructions": "Download or print the official Government of Purvanchal PDF acknowledgment receipt from this link."
+            }, False
+
+        elif tool_name == "raise_grievance":
+            category = args.get("category") or "OTHER"
+            desc = (args.get("description") or "").strip()
+            if not desc:
+                return {"error": "A detailed description is required to register a grievance."}, True
+
+            app_no = args.get("application_no")
+            target_app_id = None
+            if app_no:
+                cur.execute("SELECT id, application_no FROM applications WHERE application_no = %s AND mobile = %s", (app_no, mobile))
+                r = cur.fetchone()
+                if r:
+                    target_app_id, app_no = r
+            if not target_app_id:
+                cur.execute("SELECT id, application_no FROM applications WHERE mobile = %s ORDER BY id DESC LIMIT 1", (mobile,))
+                r = cur.fetchone()
+                if r:
+                    target_app_id, app_no = r
+
+            grv_no = "GRV" + datetime.now().strftime("%y") + str(random.randint(100000, 999999))
+            note = f"[{category}] {desc} (Ref: {grv_no})"
+            portal.write_audit(cur, target_app_id, "GRIEVANCE", f"applicant:{mobile}", note=note[:500])
+            conn.commit()
+
+            portal.send_sms(
+                mobile,
+                f"Sewa Setu: Grievance {grv_no} registered for Old Age Pension under RTPS Act. Statutory resolution SLA is 7 days."
+            )
+
+            return {
+                "success": True,
+                "grievance_no": grv_no,
+                "application_no": app_no or "N/A",
+                "category": category,
+                "status": "REGISTERED",
+                "message": f"Grievance {grv_no} has been registered under the Purvanchal Right to Public Services Act. The District Welfare Officer has been alerted.",
+                "resolution_sla_days": 7
             }, False
 
         else:

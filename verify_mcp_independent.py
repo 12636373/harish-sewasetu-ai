@@ -121,6 +121,7 @@ def main():
         print(f" [+] Citizen Tools Discovered ({len(c_tool_names)}): {c_tool_names}")
         assert "submit_application" in c_tool_names, "Missing submit_application in citizen tools"
         assert "check_eligibility" in c_tool_names, "Missing check_eligibility in citizen tools"
+        assert "raise_grievance" in c_tool_names, "Missing raise_grievance in citizen tools"
         assert "approve_application" not in c_tool_names, "CRITICAL: Administrative approve_application leaked to citizen!"
         assert "reject_application" not in c_tool_names, "CRITICAL: Administrative reject_application leaked to citizen!"
         print(" [+] Verification: Citizen assistant cannot discover any officer tools.")
@@ -169,6 +170,25 @@ def main():
         assert "summary" in dash_content, "Missing summary in dashboard"
         assert dash_content.get("statutory_sla_days") == 15, "Missing RTPS 15-day SLA specification"
         print(f" [+] Valid Tool Call: get_officer_dashboard returned live summary: {dash_content['summary']}")
+
+        # Citizen calls raise_grievance
+        call_grv = {
+            "jsonrpc": "2.0",
+            "id": 106,
+            "method": "tools/call",
+            "params": {
+                "name": "raise_grievance",
+                "arguments": {
+                    "category": "SLA_BREACH",
+                    "description": "Officer review is taking longer than usual during flood emergency."
+                }
+            }
+        }
+        _, res_grv = http_post_json(f"{BASE_URL}/mcp/citizen", call_grv, headers=citizen_auth)
+        grv_content = json.loads(res_grv["result"]["content"][0]["text"])
+        assert grv_content.get("success") is True, f"Expected success=True, got {grv_content}"
+        assert grv_content.get("grievance_no", "").startswith("GRV"), f"Expected GRV..., got {grv_content}"
+        print(f" [+] Valid Tool Call: raise_grievance registered grievance {grv_content['grievance_no']} (RTPS SLA: {grv_content['resolution_sla_days']} days)")
     except Exception as e:
         print(f" [-] FAILED Step 4: {e}")
         all_passed = False
