@@ -604,10 +604,18 @@ def admin_tokens():
                     "created_at, expires_at) VALUES (%s, %s, %s, %s, %s, %s, %s)",
                     (claims["jti"], label, subject, audience, session.get("admin_user", portal.ADMIN_USERNAME),
                      datetime.now(), datetime.fromtimestamp(claims["exp"])))
+        portal.write_audit(cur, None, "MINT_PROGRAM_TOKEN", "admin:%s" % session.get("admin_user", portal.ADMIN_USERNAME),
+                           "Issued token '%s' (audience: %s, days: %d)" % (label, audience, days))
         conn.commit()
         cur.close(); conn.close()
     if request.method == "POST" and request.form.get("revoke_subject"):
         n = _revoke_grants(request.form["revoke_subject"], request.form.get("token_hash") or None)
+        conn = portal.get_db()
+        cur = conn.cursor()
+        portal.write_audit(cur, None, "REVOKE_TOKEN_GRANTS", "admin:%s" % session.get("admin_user", portal.ADMIN_USERNAME),
+                           "Revoked %d grant(s) for subject %s" % (n, request.form["revoke_subject"]))
+        conn.commit()
+        cur.close(); conn.close()
         flash("%d officer sign-in(s) ended." % n)
     conn = portal.get_db()
     cur = conn.cursor()

@@ -25,6 +25,9 @@ def now_ist():
 
 import requests
 import psycopg2
+import werkzeug
+if not hasattr(werkzeug, "__version__"):
+    werkzeug.__version__ = "3.0.0"
 from flask import (Flask, request, session, redirect, url_for, render_template,
                    flash, send_file, abort, jsonify)
 from fpdf import FPDF
@@ -105,8 +108,31 @@ def deadline_remaining():
     return int(delta.total_seconds() // 3600)
 
 
-def new_application_no():
-    return "SSP" + datetime.now().strftime("%y") + str(random.randint(100000, 999999))
+VALID_TRANSITIONS = {
+    "PENDING": {"APPROVED", "REJECTED", "WITHDRAWN", "DEEMED_APPROVED"},
+    "APPROVED": set(),
+    "REJECTED": set(),
+    "WITHDRAWN": set(),
+    "DEEMED_APPROVED": set(),
+}
+
+
+def can_transition(current_status, new_status):
+    """Statutory welfare state machine: PENDING applications can transition to
+    APPROVED, REJECTED, WITHDRAWN, or DEEMED_APPROVED. All resulting states are terminal."""
+    return (new_status or "").upper() in VALID_TRANSITIONS.get((current_status or "").upper(), set())
+
+
+def new_application_no(cur=None):
+    for _ in range(15):
+        candidate = "SSP" + datetime.now().strftime("%y") + str(random.randint(100000, 999999))
+        if cur:
+            cur.execute("SELECT 1 FROM applications WHERE application_no = %s", (candidate,))
+            if not cur.fetchone():
+                return candidate
+        else:
+            return candidate
+    return candidate
 
 
 def write_audit(cur, app_id, action, actor, note=""):
@@ -190,7 +216,7 @@ def create_application(cur, mobile, cleaned):
 
     The caller commits. Returns (id, application_no).
     """
-    app_no = new_application_no()
+    app_no = new_application_no(cur)
     cur.execute(
         """INSERT INTO applications
            (application_no, applicant_name, mobile, dob, gender, marital_status,
@@ -544,12 +570,14 @@ def reset_password():
         cur.execute("SELECT mobile FROM portal_users WHERE mobile = %s", (mobile,))
         row = cur.fetchone()
         if row:
-            cur.execute("SELECT dob FROM applications WHERE mobile = %s LIMIT 1", (mobile,))
+            cur.execute("SELECT id, dob FROM applications WHERE mobile = %s ORDER BY id DESC LIMIT 1", (mobile,))
             r2 = cur.fetchone()
             if r2:
-                newpass = r2[0].strftime("%d%m%Y")
+                app_id, dob_val = r2
+                newpass = dob_val.strftime("%d%m%Y")
                 cur.execute("UPDATE portal_users SET password_hash = %s WHERE mobile = %s",
                             (hash_password(newpass), row[0]))
+                write_audit(cur, app_id, "RESET_PASSWORD", "system:citizen-reset", "Password reset to Date of Birth requested")
                 conn.commit()
                 send_sms(row[0], "Sewa Setu: your password has been reset to your "
                                  "date of birth (DDMMYYYY).")
@@ -646,6 +674,16 @@ def _admin_decide(app_id, new_status, note):
     actor = session.get("admin_user", ADMIN_USERNAME)
     conn = get_db()
     cur = conn.cursor()
+    cur.execute("SELECT status FROM applications WHERE id = %s", (app_id,))
+    cur_row = cur.fetchone()
+    if not cur_row:
+        cur.close(); conn.close()
+        abort(404)
+    if not can_transition(cur_row[0], new_status):
+        cur.close(); conn.close()
+        flash("Cannot transition application from status %s to %s." % (cur_row[0], new_status))
+        return redirect(url_for("admin_view", app_id=app_id))
+
     cur.execute("UPDATE applications SET status = %s, decided_at = %s, decided_by = %s "
                 "WHERE id = %s AND status = 'PENDING' RETURNING application_no",
                 (new_status, datetime.now(), actor, app_id))
@@ -989,6 +1027,63 @@ def set_security_headers(response):
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
+
+
+def _wants_json():
+    return (
+        request.path.startswith("/api/") or
+        request.path.startswith("/mcp/") or
+        request.is_json or
+        "application/json" in request.headers.get("Accept", "")
+    )
+
+
+@app.errorhandler(400)
+def bad_request(e):
+    if _wants_json():
+        return jsonify({
+            "error": "bad_request",
+            "message": str(getattr(e, "description", "Bad Request")),
+            "status_code": 400
+        }), 400
+    return render_template("error.html", code=400, title="400 — Bad Request",
+                           message="The request could not be processed due to invalid parameters or formatting."), 400
+
+
+@app.errorhandler(403)
+def forbidden(e):
+    if _wants_json():
+        return jsonify({
+            "error": "forbidden",
+            "message": str(getattr(e, "description", "Access Forbidden")),
+            "status_code": 403
+        }), 403
+    return render_template("error.html", code=403, title="403 — Access Forbidden",
+                           message="You do not have administrative or ownership permissions to access this page or record."), 403
+
+
+@app.errorhandler(404)
+def not_found(e):
+    if _wants_json():
+        return jsonify({
+            "error": "not_found",
+            "message": str(getattr(e, "description", "Resource Not Found")),
+            "status_code": 404
+        }), 404
+    return render_template("error.html", code=404, title="404 — Page Not Found",
+                           message="The requested welfare portal page or application record was not found."), 404
+
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    if _wants_json():
+        return jsonify({
+            "error": "internal_server_error",
+            "message": "An internal server error occurred while processing the request.",
+            "status_code": 500
+        }), 500
+    return render_template("error.html", code=500, title="500 — Server Error",
+                           message="The welfare service encountered an unexpected error. The system administrator has been alerted."), 500
 
 
 if __name__ == "__main__":

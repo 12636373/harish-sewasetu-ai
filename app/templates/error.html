@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — Sewa Setu{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 650px; margin: 3rem auto; text-align: center; padding: 2.5rem 2rem;">
+  <div style="font-size: 3.5rem; margin-bottom: 1rem;">
+    {% if code == 404 %}🔍{% elif code == 403 %}🔒{% elif code == 400 %}⚠️{% else %}⚙️{% endif %}
+  </div>
+  <h2 style="margin-bottom: 0.75rem; color: var(--text-main);">{{ title }}</h2>
+  <p style="color: var(--text-muted); font-size: 1.05rem; line-height: 1.6; margin-bottom: 2rem;">{{ message }}</p>
+  <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+    <a href="/" class="btn btn-primary"><i class="fas fa-home"></i> Return to Portal Home</a>
+    <a href="/status" class="btn btn-secondary"><i class="fas fa-search"></i> Check Application Status</a>
+    <a href="/assistant" class="btn btn-secondary"><i class="fas fa-robot"></i> Ask AI Assistant</a>
+  </div>
+</div>
+{% endblock %}

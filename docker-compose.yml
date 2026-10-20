@@ -38,6 +38,8 @@ services:
       smsgw:
         condition: service_started
     volumes:
+      - ./app:/app
+      - ./tests:/tests
       - uploads:/var/sewasetu/uploads
       - applogs:/var/log/sewasetu
 
