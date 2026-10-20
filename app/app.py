@@ -703,6 +703,50 @@ def api_citizen_assistant():
     action_links = []
     reply = ""
 
+    # Security Guard 1: Prompt Injection & Jailbreak Defense
+    injection_patterns = [
+        r"ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions",
+        r"system\s+prompt",
+        r"override\s+security",
+        r"jailbreak",
+        r"developer\s+mode",
+        r"disregard\s+rules",
+        r"act\s+as\s+(?:an?\s+)?admin"
+    ]
+    for pattern in injection_patterns:
+        if re.search(pattern, msg_lower):
+            return jsonify({
+                "reply": "<strong>Security Notice:</strong> Instructions attempting to override system prompts, role boundaries, or security constraints are strictly blocked. The assistant operates exclusively within statutory scheme rules.",
+                "action_links": []
+            })
+
+    # Security Guard 2: Intercept Administrative Command Attempts via Natural Language
+    admin_intent_patterns = [
+        r"\b(?:approve|reject|authorize)\s+(?:application|case|SSP\d+)",
+        r"\bchange\s+status\s+to\s+(?:approved|rejected)",
+        r"\bmark\s+(?:as\s+)?(?:approved|rejected)",
+        r"\bgrant\s+officer\s+access"
+    ]
+    for pattern in admin_intent_patterns:
+        if re.search(pattern, msg_lower):
+            return jsonify({
+                "reply": "<strong>Administrative Action Notice:</strong> Decisions to approve, reject, or alter application statuses cannot be executed via natural language instructions on this citizen assistant. Administrative actions are strictly restricted to authorized Block Welfare Officers logged in via <a href='/admin'>Departmental Admin</a> or authenticated via the Officer MCP server (<code>/mcp/officer</code>) with verified RS256 credentials.",
+                "action_links": [{"label": "Officer Login", "url": "/admin"}, {"label": "Officer MCP Info", "url": "/mcp/officer"}]
+            })
+
+    # Security Guard 3: Block Credential & Infrastructure Extraction
+    cred_patterns = [
+        r"(?:what\s+is|show\s+me|give\s+me|tell\s+me)\s+(?:the\s+)?(?:admin|root|database|db|postgres)\s+password",
+        r"(?:what\s+is|show\s+me|give\s+me)\s+(?:the\s+)?(?:jwt|signing|private|secret)\s+key",
+        r"(?:what\s+is|show\s+me|give\s+me)\s+(?:the\s+)?api\s+key"
+    ]
+    for pattern in cred_patterns:
+        if re.search(pattern, msg_lower):
+            return jsonify({
+                "reply": "<strong>Security &amp; Privacy Protection:</strong> System passwords, cryptographic signing keys, API credentials, and internal infrastructure configurations are strictly protected and never disclosed.",
+                "action_links": []
+            })
+
     # Check for mobile number or application number
     mobile_match = re.search(r"\b([6-9]\d{9})\b", msg)
     app_no_match = re.search(r"\b(SSP\d+)\b", msg, re.IGNORECASE)
@@ -710,81 +754,87 @@ def api_citizen_assistant():
     if mobile_match or app_no_match or "status" in msg_lower or "track" in msg_lower or "check my" in msg_lower:
         query_val = mobile_match.group(1) if mobile_match else (app_no_match.group(1).upper() if app_no_match else None)
         if query_val:
-            conn = get_db()
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT id, application_no, applicant_name, status, block, village,
-                       submitted_at, decided_at, decided_by, dob
-                FROM applications
-                WHERE mobile = %s OR application_no = %s
-                ORDER BY id DESC LIMIT 1
-            """, (query_val, query_val))
-            row = cur.fetchone()
+            try:
+                conn = get_db()
+                cur = conn.cursor()
+                cur.execute("""
+                    SELECT id, application_no, applicant_name, status, block, village,
+                           submitted_at, decided_at, decided_by, dob
+                    FROM applications
+                    WHERE mobile = %s OR application_no = %s
+                    ORDER BY id DESC LIMIT 1
+                """, (query_val, query_val))
+                row = cur.fetchone()
 
-            if row:
-                app_id, app_no, name, status, block, village, sub_at, dec_at, dec_by, dob = row
-                cur.execute("SELECT action, actor, note, at FROM audit_log WHERE application_id = %s ORDER BY id DESC LIMIT 3", (app_id,))
-                audits = cur.fetchall()
-                cur.close(); conn.close()
+                if row:
+                    app_id, app_no, name, status, block, village, sub_at, dec_at, dec_by, dob = row
+                    cur.execute("SELECT action, actor, note, at FROM audit_log WHERE application_id = %s ORDER BY id DESC LIMIT 3", (app_id,))
+                    audits = cur.fetchall()
+                    cur.close(); conn.close()
 
-                days_elapsed = (now_ist() - sub_at.replace(tzinfo=None)).days if sub_at else 0
-                days_left = max(0, SLA_DAYS - days_elapsed)
-                dob_str = dob.strftime("%d%m%Y") if dob else ""
+                    days_elapsed = (now_ist() - sub_at.replace(tzinfo=None)).days if sub_at else 0
+                    days_left = max(0, SLA_DAYS - days_elapsed)
 
-                if status == "PENDING":
+                    if status == "PENDING":
+                        reply = (
+                            f"<strong>Application Found:</strong> {app_no} for <strong>{name}</strong><br>"
+                            f"Status: <span class='status-pill status-pending'>PENDING</span> in {block} block.<br>"
+                            f"Submitted on: {sub_at.strftime('%d/%m/%Y')}.<br>"
+                            f"<strong>Statutory RTPS Guarantee:</strong> {days_left} days remaining of the 15-day SLA. "
+                            f"If an officer does not decide by day 15, your application stands <em>Deemed Approved</em> by law.<br>"
+                            f"Track online at <code>/status</code> using your mobile and Date of Birth as password (DDMMYYYY format)."
+                        )
+                        action_links = [
+                            {"label": "Open Status Portal", "url": "/status"},
+                            {"label": "Download Stamped Acknowledgment", "url": f"/ack/{app_id}.pdf"}
+                        ]
+                    elif status in ("APPROVED", "DEEMED_APPROVED"):
+                        badge_cls = "status-approved" if status == "APPROVED" else "status-deemed_approved"
+                        label = "APPROVED" if status == "APPROVED" else "DEEMED APPROVED (RTPS Statutory)"
+                        by_txt = f"by Officer {dec_by}" if status == "APPROVED" else "automatically under RTPS 15-day statutory SLA"
+                        reply = (
+                            f"<strong>Application Found:</strong> {app_no} for <strong>{name}</strong><br>"
+                            f"Status: <span class='status-pill {badge_cls}'>{label}</span><br>"
+                            f"Decision: Processed {by_txt} on {dec_at.strftime('%d/%m/%Y') if dec_at else 'recently'}.<br>"
+                            f"Your monthly pension of <strong>₹250/month</strong> will be disbursed via Direct Benefit Transfer (DBT) to your registered bank account."
+                        )
+                        action_links = [
+                            {"label": "View Status Record", "url": "/status"},
+                            {"label": "Download Certificate/Ack", "url": f"/ack/{app_id}.pdf"}
+                        ]
+                    elif status == "REJECTED":
+                        note = audits[0][2] if audits and audits[0][2] else "Documentation did not meet statutory criteria."
+                        reply = (
+                            f"<strong>Application Found:</strong> {app_no} for <strong>{name}</strong><br>"
+                            f"Status: <span class='status-pill status-rejected'>REJECTED</span><br>"
+                            f"Reason given by block officer: <em>\"{note}\"</em><br>"
+                            f"<strong>Important:</strong> Your mobile number is now unblocked. You can obtain a clearer document and submit a fresh application right away."
+                        )
+                        action_links = [
+                            {"label": "Apply Again", "url": "/apply"},
+                            {"label": "View Status Details", "url": "/status"}
+                        ]
+                    elif status == "WITHDRAWN":
+                        reply = (
+                            f"Application {app_no} was <strong>WITHDRAWN</strong> voluntarily.<br>"
+                            f"Your mobile number is completely clear with no active applications. You may submit a corrected application anytime."
+                        )
+                        action_links = [{"label": "Start Fresh Application", "url": "/apply"}]
+                    return jsonify({"reply": reply, "action_links": action_links})
+                else:
+                    cur.close(); conn.close()
                     reply = (
-                        f"<strong>Application Found:</strong> {app_no} for <strong>{name}</strong><br>"
-                        f"Status: <span class='status-pill status-pending'>PENDING</span> in {block} block.<br>"
-                        f"Submitted on: {sub_at.strftime('%d/%m/%Y')}.<br>"
-                        f"<strong>Statutory RTPS Guarantee:</strong> {days_left} days remaining of the 15-day SLA. "
-                        f"If an officer does not decide by day 15, your application stands <em>Deemed Approved</em> by law.<br>"
-                        f"Track online at <code>/status</code> using your mobile and Date of Birth password (<code>{dob_str}</code>)."
+                        f"No application was found matching <code>{query_val}</code> in the portal database.<br>"
+                        f"If you haven't applied yet and are 60 years or older, you can begin your application online."
                     )
-                    action_links = [
-                        {"label": "Open Status Portal", "url": "/status"},
-                        {"label": "Download Stamped Acknowledgment", "url": f"/ack/{app_id}.pdf"}
-                    ]
-                elif status in ("APPROVED", "DEEMED_APPROVED"):
-                    badge_cls = "status-approved" if status == "APPROVED" else "status-deemed_approved"
-                    label = "APPROVED" if status == "APPROVED" else "DEEMED APPROVED (RTPS Statutory)"
-                    by_txt = f"by Officer {dec_by}" if status == "APPROVED" else "automatically under RTPS 15-day statutory SLA"
-                    reply = (
-                        f"<strong>Application Found:</strong> {app_no} for <strong>{name}</strong><br>"
-                        f"Status: <span class='status-pill {badge_cls}'>{label}</span><br>"
-                        f"Decision: Processed {by_txt} on {dec_at.strftime('%d/%m/%Y') if dec_at else 'recently'}.<br>"
-                        f"Your monthly pension of <strong>₹250/month</strong> will be disbursed via Direct Benefit Transfer (DBT) to your registered bank account."
-                    )
-                    action_links = [
-                        {"label": "View Status Record", "url": "/status"},
-                        {"label": "Download Certificate/Ack", "url": f"/ack/{app_id}.pdf"}
-                    ]
-                elif status == "REJECTED":
-                    note = audits[0][2] if audits and audits[0][2] else "Documentation did not meet statutory criteria."
-                    reply = (
-                        f"<strong>Application Found:</strong> {app_no} for <strong>{name}</strong><br>"
-                        f"Status: <span class='status-pill status-rejected'>REJECTED</span><br>"
-                        f"Reason given by block officer: <em>\"{note}\"</em><br>"
-                        f"<strong>Important:</strong> Your mobile number is now unblocked. You can obtain a clearer document and submit a fresh application right away."
-                    )
-                    action_links = [
-                        {"label": "Apply Again", "url": "/apply"},
-                        {"label": "View Status Details", "url": "/status"}
-                    ]
-                elif status == "WITHDRAWN":
-                    reply = (
-                        f"Application {app_no} was <strong>WITHDRAWN</strong> voluntarily.<br>"
-                        f"Your mobile number is completely clear with no active applications. You may submit a corrected application anytime."
-                    )
-                    action_links = [{"label": "Start Fresh Application", "url": "/apply"}]
-                return jsonify({"reply": reply, "action_links": action_links})
-            else:
-                cur.close(); conn.close()
-                reply = (
-                    f"No application was found matching <code>{query_val}</code> in the portal database.<br>"
-                    f"If you haven't applied yet and are 60 years or older, you can begin your application online."
-                )
-                action_links = [{"label": "Apply for Pension", "url": "/apply"}]
-                return jsonify({"reply": reply, "action_links": action_links})
+                    action_links = [{"label": "Apply for Pension", "url": "/apply"}]
+                    return jsonify({"reply": reply, "action_links": action_links})
+            except Exception as e:
+                app.logger.error("Error querying application status: %s", e)
+                return jsonify({
+                    "reply": "We encountered an issue looking up records in the portal database. Please try again or visit <a href='/status'>/status</a> directly.",
+                    "action_links": [{"label": "Open Status Portal", "url": "/status"}]
+                })
         else:
             reply = (
                 "To check your application status, please provide your <strong>10-digit mobile number</strong> "

@@ -85,7 +85,7 @@ def authenticate_mcp_request(required_role):
         # Check if an eval token or test header was provided (for testing & evaluation runner)
         test_sub = request.headers.get("X-SewaSetu-Eval-Subject")
         test_key = request.headers.get("X-SewaSetu-Eval-Key")
-        if test_sub and test_key == portal.ADMIN_PASSWORD:
+        if test_sub and test_key and portal.ADMIN_PASSWORD and test_key == portal.ADMIN_PASSWORD:
             role = "citizen" if test_sub.startswith("citizen:") else "officer"
             if role == required_role:
                 return {
