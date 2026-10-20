@@ -132,6 +132,7 @@ def main():
         print(f" [+] Officer Tools Discovered ({len(o_tool_names)}): {o_tool_names}")
         assert "approve_application" in o_tool_names, "Missing approve_application in officer tools"
         assert "list_pending_applications" in o_tool_names, "Missing list_pending_applications in officer tools"
+        assert "verify_documents" in o_tool_names, "Missing verify_documents in officer tools"
         print(" [+] Verification: Officer assistant discovers administrative toolset.")
     except Exception as e:
         print(f" [-] FAILED Step 3: {e}")
@@ -329,6 +330,27 @@ def main():
         assert det_content["applicant_name"] == "Jadu Nath Hazarika", f"Name mismatch: {det_content}"
         assert det_content["compliance_checks"]["age_criterion"]["passed"] is True, "Age criterion not passed"
         print(" [+] Step C (Officer): Retrieved full dossier and verified compliance checks.")
+
+        # Step C2: Officer records document verification
+        vdoc_payload = {
+            "jsonrpc": "2.0",
+            "id": 1131,
+            "method": "tools/call",
+            "params": {
+                "name": "verify_documents",
+                "arguments": {
+                    "application_id": app_id,
+                    "verification_status": "VERIFIED_VALID",
+                    "document_type_verified": "Voter ID",
+                    "officer_remarks": "Original Voter ID EPIC inspected; age confirmed as 74 years."
+                }
+            }
+        }
+        _, res_vdoc = http_post_json(f"{BASE_URL}/mcp/officer", vdoc_payload, headers=officer_auth)
+        vdoc_content = json.loads(res_vdoc["result"]["content"][0]["text"])
+        assert vdoc_content.get("success") is True, f"Document verification failed: {vdoc_content}"
+        assert vdoc_content.get("verification_status") == "VERIFIED_VALID", f"Expected VERIFIED_VALID: {vdoc_content}"
+        print(f" [+] Step C2 (Officer): Document verification recorded -> {vdoc_content['verification_status']} ({vdoc_content['document_type']})")
 
         # Step D: Officer approves application
         approval_note = "Independent verification test: age proof and bank passbook verified compliant."

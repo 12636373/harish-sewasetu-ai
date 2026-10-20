@@ -853,6 +853,37 @@ OFFICER_TOOLS = [
             },
             "required": ["application_id", "status", "note"]
         }
+    },
+    {
+        "name": "verify_documents",
+        "description": "Record a formal document verification outcome for an application. Verifies age proof validity or records specific documentation defects in the audit trail before decision-making.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "application_id": {
+                    "type": "integer",
+                    "description": "Internal database ID of application"
+                },
+                "application_no": {
+                    "type": "string",
+                    "description": "Application number (e.g. 'SSP26123456')"
+                },
+                "verification_status": {
+                    "type": "string",
+                    "enum": ["VERIFIED_VALID", "DEFECT_BLURRY", "DEFECT_NAME_MISMATCH", "DEFECT_AGE_UNDER_60", "DEFECT_INCOMPLETE"],
+                    "description": "Document verification outcome"
+                },
+                "document_type_verified": {
+                    "type": "string",
+                    "description": "Type of supporting document inspected (e.g. 'Voter ID', 'Aadhaar Card', 'Birth Certificate', 'Jan Dhan Passbook')"
+                },
+                "officer_remarks": {
+                    "type": "string",
+                    "description": "Detailed remarks regarding document legibility, date verification, and identity matching"
+                }
+            },
+            "required": ["verification_status", "document_type_verified", "officer_remarks"]
+        }
     }
 ]
 
@@ -1217,6 +1248,50 @@ def execute_officer_tool(tool_name, args, claims):
                 return execute_officer_tool("reject_application", {"application_id": args.get("application_id"), "reason": note}, claims)
             else:
                 return {"error": f"Invalid status transition to '{new_status}'. Allowed transitions: APPROVED, REJECTED."}, True
+
+        elif tool_name == "verify_documents":
+            app_id = args.get("application_id")
+            app_no = args.get("application_no")
+            v_status = args.get("verification_status") or "VERIFIED_VALID"
+            doc_type = (args.get("document_type_verified") or "Age Proof").strip()
+            remarks = (args.get("officer_remarks") or "").strip()
+
+            if not remarks:
+                return {"error": "Officer verification remarks are mandatory for audit accountability."}, True
+
+            if not app_id and not app_no:
+                return {"error": "Either application_id or application_no is required."}, True
+
+            if app_id:
+                cur.execute("SELECT id, application_no, applicant_name, status, mobile FROM applications WHERE id = %s", (app_id,))
+            else:
+                cur.execute("SELECT id, application_no, applicant_name, status, mobile FROM applications WHERE application_no = %s", (app_no,))
+
+            row = cur.fetchone()
+            if not row:
+                return {"error": f"Application {app_id or app_no} not found."}, True
+
+            target_id, target_no, target_name, target_status, target_mobile = row
+
+            if target_status != "PENDING":
+                return {"error": f"Cannot record document verification on application {target_no} with status '{target_status}'. Only PENDING cases can be verified."}, True
+
+            audit_action = "DOC_VERIFIED" if v_status == "VERIFIED_VALID" else "DOC_DEFECT"
+            note = f"[{v_status}] {doc_type}: {remarks}"
+            portal.write_audit(cur, target_id, audit_action, f"admin:{officer_user}", note=note[:500])
+            conn.commit()
+
+            return {
+                "success": True,
+                "application_id": target_id,
+                "application_no": target_no,
+                "applicant_name": target_name,
+                "verification_status": v_status,
+                "document_type": doc_type,
+                "verified_by": officer_user,
+                "audit_action": audit_action,
+                "message": f"Document verification outcome '{v_status}' recorded in official audit trail for application {target_no}."
+            }, False
 
         else:
             return {"error": f"Unknown officer tool: {tool_name}"}, True
