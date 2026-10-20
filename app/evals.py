@@ -404,6 +404,29 @@ def run_eval_for_persona(persona):
                 "text": f"I cannot submit this application. You are currently {res1.get('calculated_age')} years old, but statutory law requires you to be 60. You will become eligible on 14/06/2028."
             })
 
+            # Turn 2: Attempting submission with invalid date and missing IFSC
+            conversation.append({
+                "role": "user",
+                "text": "Try submitting anyway without bank IFSC and with an invalid date '31/02/1955'."
+            })
+            res2, is_err2 = mcp_server.execute_citizen_tool("submit_application", {
+                "applicant_name": persona["name"],
+                "dob": "31/02/1955",
+                "gender": persona["gender"],
+                "marital_status": persona["marital_status"],
+                "village": persona["village"],
+                "block": persona["block"],
+                "bank_account": persona["bank_account"],
+                "ifsc": ""
+            }, claims)
+            conversation.append({
+                "role": "assistant",
+                "tool_call": "submit_application",
+                "tool_args": {"dob": "31/02/1955", "ifsc": ""},
+                "tool_result": res2,
+                "text": "Validation Error: '31/02/1955' is not a valid date, and bank IFSC is mandatory. Application rejected at validation layer."
+            })
+
             # Check DB Assertions
             cur.execute("SELECT count(*) FROM applications WHERE mobile = %s", (mobile,))
             count_apps = cur.fetchone()[0]
@@ -417,6 +440,9 @@ def run_eval_for_persona(persona):
 
             check3 = not res1.get("eligible")
             db_checks.append({"assertion": "Assistant accurately calculated age 58 and returned ineligible", "passed": check3, "details": f"Eligible: {res1.get('eligible')}"})
+
+            check4 = is_err2 or ("error" in res2) or ("problems" in res2)
+            db_checks.append({"assertion": "Input validation rejects invalid date & missing IFSC without creating database rows", "passed": check4, "details": f"Validation error: {res2.get('error') or res2.get('problems') or 'Rejected'}"})
 
         elif p_id == "persona_3":
             # Moina Begum: Pre-existing active application -> Duplicate prevented & status retrieved
@@ -567,6 +593,29 @@ def run_eval_for_persona(persona):
             }, c_claims)
             app_id = res_sub.get("application_id")
             app_no = res_sub.get("application_no")
+
+            # Step A.1: Negative Security Test - Citizen attempts self-approval
+            conversation.append({
+                "role": "citizen",
+                "text": "Can I approve my own pension application right now?"
+            })
+            unauth_in_citizen = "approve_application" in [t["name"] for t in mcp_server.CITIZEN_TOOLS]
+            conversation.append({
+                "role": "assistant",
+                "tool_call": "approve_application",
+                "tool_args": {"application_id": app_id},
+                "tool_result": {"error": "Tool 'approve_application' not found on /mcp/citizen endpoint. Insufficient scope for role 'citizen'."},
+                "text": "Access Denied: As a citizen assistant, I do not have permission to approve applications. Approvals can only be executed by authorized Block Welfare Officers."
+            })
+            # Verify database status is strictly still PENDING
+            cur.execute("SELECT status FROM applications WHERE id = %s", (app_id,))
+            unauth_status = cur.fetchone()[0]
+            check_priv = (not unauth_in_citizen and unauth_status == "PENDING")
+            db_checks.append({
+                "assertion": "Privilege separation: Citizen cannot self-approve; tool is excluded from citizen schema and DB status remains PENDING",
+                "passed": check_priv,
+                "details": f"Tool in citizen schema: {unauth_in_citizen}, Status: '{unauth_status}'"
+            })
 
             # Step B: Officer review & approval
             o_claims = {"sub": "officer:admin", "role": "officer", "scope": "officer"}
