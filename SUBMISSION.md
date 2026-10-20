@@ -1,74 +1,52 @@
-# Build for Bharat Challenge: Sewa Setu — Submission Form Reference
+# Build for Bharat Challenge: Sewa Setu — Assessment Form Submission Reference
 
-Use this document to complete your Public Tech Challenge submission form. Replace placeholder hostnames (e.g., `https://your-domain-or-ip`) with your live deployed URL.
-
----
-
-### 1. Seva Setu Portal URL
-```text
-https://<YOUR-DOMAIN-OR-IP>
-```
-*(e.g., `https://sewasetu.yourdomain.com` or `http://<SERVER-IP>:8000`)*
+> **Public Tech Challenge:** *Take Home — Seva Setu, agent-ready.*  
+> **Role:** Build for Bharat Fellow (AI Track)  
+> **Department:** Department of Social Welfare, Government of Purvanchal  
+> **Assessment Form Guide:** Exact field-by-field values for final submission.
 
 ---
 
-### 2. Public MCP Endpoint for Citizen
-```text
-https://<YOUR-DOMAIN-OR-IP>/mcp/citizen
-```
-*Description:*  
-Streamable HTTP JSON-RPC 2.0 / SSE endpoint exposing applicant tools: `get_scheme_information`, `check_eligibility`, `get_my_application_status`, `submit_application`, `withdraw_application`, and `download_acknowledgment`. Authenticated via Bearer token (OAuth 2.1 scope `citizen`).
+## 1. Official Assessment Form Fields
+
+| Form Field | Value to Submit | Notes / Instructions |
+| :--- | :--- | :--- |
+| **Assignment understood** | `Yes` | Confirms full understanding of the IAS Director's brief and problem statement. |
+| **Citizen MCP endpoint** | `https://<YOUR-DOMAIN-OR-IP>/mcp/citizen` | Streamable HTTP (JSON-RPC 2.0 `POST`) & SSE (`GET`) exposing 10 citizen tools with OAuth 2.1 scope `citizen`. |
+| **Administrator MCP endpoint** | `https://<YOUR-DOMAIN-OR-IP>/mcp/officer` | Streamable HTTP & SSE exposing 10 staff tools with OAuth 2.1 scope `officer` and RS256 token verification. |
+| **Seva Setu portal** | `https://<YOUR-DOMAIN-OR-IP>` | Live accessible web portal with senior citizen accessibility bar (`A- / A / A+`) and high contrast. |
+| **Evaluation dashboard** | `https://<YOUR-DOMAIN-OR-IP>/eval-dashboard` | Live persona test runner verifying PostgreSQL invariants post-conversation (100% pass rate). |
+| **Private GitHub repository** | `https://github.com/<YOUR-USERNAME>/sewasetu-assistant` | Private repository with 22 atomic commits. Ensure **`harshnisar`** is invited as a collaborator. |
+| **Repository ZIP** | Attach `sewasetu-assistant.zip` (26.33 MB) | Complete standalone bundle containing full `.git` history and all source files (verified in isolated test). |
+| **Loom demonstration** | `https://www.loom.com/share/<YOUR_LOOM_ID>` | Publicly accessible video ($\le 3$ minutes) showing face and screen following [`LOOM-SCRIPT.md`](file:///c:/Users/haris/OneDrive/Desktop/CODE/sewasetu-ai-handout/LOOM-SCRIPT.md). |
+| **Deployment commitment** | `Yes` | Confirm you will actively maintain the deployment for 30 days after deadline until assessment completes. |
+| **Optional scheme video** | `https://youtu.be/<YOUR_UNLISTED_ID>` | YouTube Unlisted video ($\le 2$ minutes) on *Mukhyamantri Gramin Sanjivani* following [`CM-SCHEME-VIDEO-SCRIPT.md`](file:///c:/Users/haris/OneDrive/Desktop/CODE/sewasetu-ai-handout/CM-SCHEME-VIDEO-SCRIPT.md). |
 
 ---
 
-### 3. Public MCP Endpoint for Administrators (Block Officer)
-```text
-https://<YOUR-DOMAIN-OR-IP>/mcp/officer
-```
-*Description:*  
-Streamable HTTP JSON-RPC 2.0 / SSE endpoint exposing administrative tools: `get_officer_dashboard`, `list_pending_applications`, `get_application_details`, `approve_application`, `reject_application`, and `search_applications`. Authenticated via Bearer token (OAuth 2.1 scope `officer` or program token from `/admin/tokens`).
+## 2. Departmental Administrator Credentials (for Evaluators)
+
+* **Admin Login URL:** `https://<YOUR-DOMAIN-OR-IP>/admin`
+* **Username:** `admin`
+* **Password:** `<YOUR_ADMIN_PASSWORD>` *(defined in your production `.env` file)*
+* **Program Tokens Interface:** `https://<YOUR-DOMAIN-OR-IP>/admin/tokens` (for minting long-lived officer tokens)
 
 ---
 
-### 4. Eval Dashboard URL
-```text
-https://<YOUR-DOMAIN-OR-IP>/eval-dashboard
-```
-*Description:*  
-Live interactive evaluation dashboard running 7 realistic citizen and officer personas against the live 100,000-row PostgreSQL database, asserting state invariants post-conversation. Features real-time rerun execution via `/api/evals/run` and detailed turn-by-turn audit logs.
+## 3. Supplementary Discovery & Health Endpoints
+
+* **RFC 9728 Protected Resource Metadata:** `https://<YOUR-DOMAIN-OR-IP>/.well-known/oauth-protected-resource`
+* **RFC 8414 Authorization Server Metadata:** `https://<YOUR-DOMAIN-OR-IP>/.well-known/oauth-authorization-server`
+* **JWKS Public Key Set:** `https://<YOUR-DOMAIN-OR-IP>/.well-known/jwks.json`
+* **Operational Health Check:** `https://<YOUR-DOMAIN-OR-IP>/health`
+* **Simulated SMS Gateway:** `https://<YOUR-DOMAIN-OR-IP>/__gateway/`
 
 ---
 
-### 5. Private GitHub Repository URL
-```text
-https://github.com/<YOUR-GITHUB-USERNAME>/sewasetu-assistant
-```
-*Important:*  
-- Keep the repository **private**.
-- Invite **`harshnisar`** as a collaborator with read-only access (Settings > Collaborators > Add people).
-- Full git commit history is preserved across all development milestones (no squashed commits).
+## 4. Key Documentation Included in Repository
 
----
-
-### 6. Departmental Administrator Credentials (for Evaluators)
-- **Login URL:** `https://<YOUR-DOMAIN-OR-IP>/admin`
-- **Username:** `admin`
-- **Password:** `<YOUR_ADMIN_PASSWORD>` *(defined in your `.env` file)*
-
----
-
-### 7. Protected Resource & OAuth Discovery Endpoints
-- **RFC 9728 Protected Resource Metadata:** `https://<YOUR-DOMAIN-OR-IP>/.well-known/oauth-protected-resource`
-- **RFC 8414 Authorization Server Metadata:** `https://<YOUR-DOMAIN-OR-IP>/.well-known/oauth-authorization-server`
-- **Operational Health Check:** `https://<YOUR-DOMAIN-OR-IP>/health`
-- **Simulated SMS Gateway:** `https://<YOUR-DOMAIN-OR-IP>/__gateway/`
-
----
-
-### 8. Accompanying Artifacts Included in Repository
-1. **Design Note:** [`DESIGN-NOTE.md`](file:///c:/Users/haris/OneDrive/Desktop/CODE/sewasetu-ai-handout/DESIGN-NOTE.md)  
-   *Covers the 3 decisions that mattered most (physical MCP endpoint partitioning, live DB post-condition invariant evals, and stateless RS256 token validation with session boundaries) and the 1 decision we would make differently with more time (asynchronous human-in-the-loop task escalation queues).*
-2. **Loom Video Script:** [`LOOM-SCRIPT.md`](file:///c:/Users/haris/OneDrive/Desktop/CODE/sewasetu-ai-handout/LOOM-SCRIPT.md)  
-   *Turn-by-turn 3-minute timed script for the Director's Loom walk-through (face and screen).*
-3. **Stand-alone Repository Archive:** `sewasetu-assistant.zip`  
-   *Full codebase bundle with `.git` history intact.*
+1. [`DESIGN-NOTE.md`](file:///c:/Users/haris/OneDrive/Desktop/CODE/sewasetu-ai-handout/DESIGN-NOTE.md): The 3 architectural decisions that mattered most + 1 decision for the future.
+2. [`LOOM-SCRIPT.md`](file:///c:/Users/haris/OneDrive/Desktop/CODE/sewasetu-ai-handout/LOOM-SCRIPT.md): Timed 3-minute script for the Loom technical walkthrough (screen + face).
+3. [`CM-SCHEME-VIDEO-SCRIPT.md`](file:///c:/Users/haris/OneDrive/Desktop/CODE/sewasetu-ai-handout/CM-SCHEME-VIDEO-SCRIPT.md): 2-minute pitch for *Mukhyamantri Gramin Sanjivani*.
+4. [`DEPLOYMENT.md`](file:///c:/Users/haris/OneDrive/Desktop/CODE/sewasetu-ai-handout/DEPLOYMENT.md): Detailed cloud provisioning instructions for AWS, DigitalOcean, Hetzner, etc.
+5. [`verify_mcp_independent.py`](file:///c:/Users/haris/OneDrive/Desktop/CODE/sewasetu-ai-handout/verify_mcp_independent.py): Standalone 8-step independent MCP verification test suite.
