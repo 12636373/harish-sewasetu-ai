@@ -267,6 +267,33 @@ CITIZEN_TOOLS = [
             "properties": {},
             "required": []
         }
+    },
+    {
+        "name": "list_schemes",
+        "description": "Retrieve available welfare schemes in the Department of Social Welfare. Returns official scheme guidelines, eligibility rules, and benefit amounts (alias for get_scheme_information).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    },
+    {
+        "name": "get_required_documents",
+        "description": "Explain the required supporting documents for the Old Age Pension scheme.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    },
+    {
+        "name": "get_application_status",
+        "description": "Check the status and SLA timeline of the signed-in citizen's pension application (alias for get_my_application_status).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
     }
 ]
 
@@ -283,7 +310,7 @@ def execute_citizen_tool(tool_name, args, claims):
     cur = conn.cursor()
 
     try:
-        if tool_name == "get_scheme_information":
+        if tool_name in ("get_scheme_information", "list_schemes"):
             remaining = portal.deadline_remaining()
             deadline_str = portal.SCHEME_DEADLINE.strftime("%d %B %Y, %I:%M %p")
             window_status = f"Open (closes in {remaining} hours on {deadline_str})" if remaining else "Closed"
@@ -300,6 +327,28 @@ def execute_citizen_tool(tool_name, args, claims):
 - **Application Window:** {window_status}.
 - **Tracking & Status:** Applicants can track their application at any time using their mobile number and date of birth (as DDMMYYYY) at `/status`."""
             return {"text": info}, False
+
+        elif tool_name == "get_required_documents":
+            return {
+                "scheme": "Old Age Pension Scheme (Sewa Setu)",
+                "required_documents": [
+                    {
+                        "category": "Proof of Age",
+                        "options": ["Voter ID Card (EPIC)", "Aadhaar Card", "Birth Certificate", "School Leaving Certificate"],
+                        "rules": "Must clearly establish age 60 years or above. Upload size up to 5MB."
+                    },
+                    {
+                        "category": "Proof of Identity & Address",
+                        "options": ["Voter ID", "Aadhaar", "Ration Card"],
+                        "rules": f"Must establish residence in designated blocks: {', '.join(portal.BLOCKS)}."
+                    },
+                    {
+                        "category": "Bank Passbook",
+                        "options": ["Active Savings Bank Account Passbook"],
+                        "rules": "Must display clear Account Number and 11-digit IFSC code in applicant's name."
+                    }
+                ]
+            }, False
 
         elif tool_name == "check_eligibility":
             dob_raw = args.get("dob")
@@ -353,7 +402,7 @@ def execute_citizen_tool(tool_name, args, claims):
                 "message": f"Applicant (age {age}) meets the statutory age and territorial criteria. You may proceed with submit_application."
             }, False
 
-        elif tool_name == "get_my_application_status":
+        elif tool_name in ("get_my_application_status", "get_application_status"):
             cur.execute("""
                 SELECT id, application_no, applicant_name, mobile, dob, village, block,
                        bank_account, ifsc, status, submitted_at, decided_at, decided_by
@@ -681,6 +730,66 @@ OFFICER_TOOLS = [
             },
             "required": ["query"]
         }
+    },
+    {
+        "name": "get_application_queue",
+        "description": "Retrieve cases awaiting review in the block officer queue (alias for list_pending_applications).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "block": {
+                    "type": "string",
+                    "enum": ["Sonari", "Rajapara", "Dhemaji Pathar", "Borgaon", "Namti", "Khelua"],
+                    "description": "Optional block filter"
+                },
+                "urgency": {
+                    "type": "string",
+                    "enum": ["all", "approaching_sla", "overdue"],
+                    "description": "Filter by SLA urgency: 'approaching_sla' (pending 10+ days), 'overdue' (>15 days), or 'all'"
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of records to return (default 20, max 100)"
+                },
+                "offset": {
+                    "type": "integer",
+                    "description": "Pagination offset (default 0)"
+                }
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "get_welfare_analytics",
+        "description": "Retrieve aggregate service metrics, pending queue counts, and SLA breach warnings (alias for get_officer_dashboard).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    },
+    {
+        "name": "update_application_status",
+        "description": "Update a case through an authorized transition (APPROVED or REJECTED) with mandatory justification remarks.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "application_id": {
+                    "type": "integer",
+                    "description": "Internal database ID of application"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": ["APPROVED", "REJECTED"],
+                    "description": "New status for the application"
+                },
+                "note": {
+                    "type": "string",
+                    "description": "Official justification remarks for the audit trail"
+                }
+            },
+            "required": ["application_id", "status", "note"]
+        }
     }
 ]
 
@@ -694,7 +803,7 @@ def execute_officer_tool(tool_name, args, claims):
     cur = conn.cursor()
 
     try:
-        if tool_name == "get_officer_dashboard":
+        if tool_name in ("get_officer_dashboard", "get_welfare_analytics"):
             cur.execute("SELECT status, count(*) FROM applications GROUP BY status")
             by_status = dict(cur.fetchall())
 
@@ -730,7 +839,7 @@ def execute_officer_tool(tool_name, args, claims):
                 )
             }, False
 
-        elif tool_name == "list_pending_applications":
+        elif tool_name in ("list_pending_applications", "get_application_queue"):
             block = args.get("block")
             urgency = args.get("urgency", "all")
             limit = min(max(int(args.get("limit") or 20), 1), 100)
@@ -1035,6 +1144,16 @@ def execute_officer_tool(tool_name, args, claims):
             ]
 
             return {"total_matches": len(results), "applications": results}, False
+
+        elif tool_name == "update_application_status":
+            new_status = (args.get("status") or "").upper()
+            note = args.get("note") or ""
+            if new_status == "APPROVED":
+                return execute_officer_tool("approve_application", {"application_id": args.get("application_id"), "note": note}, claims)
+            elif new_status == "REJECTED":
+                return execute_officer_tool("reject_application", {"application_id": args.get("application_id"), "reason": note}, claims)
+            else:
+                return {"error": f"Invalid status transition to '{new_status}'. Allowed transitions: APPROVED, REJECTED."}, True
 
         else:
             return {"error": f"Unknown officer tool: {tool_name}"}, True
