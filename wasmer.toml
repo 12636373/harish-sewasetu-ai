@@ -1,7 +1,7 @@
 [package]
-name = "sewasetu-assistant"
+name = "harish-sewasetu-ai"
 version = "1.0.0"
-description = "Sewa Setu — Old Age Pension Scheme Portal & Agent-Ready MCP Server"
+description = "SewaSetu AI — Autonomous Agentic Public Welfare & Pension Platform by Harish"
 license = "MIT"
 
 [dependencies]

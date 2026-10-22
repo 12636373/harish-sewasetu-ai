@@ -1,5 +1,5 @@
 kind: wasmer.io/App.v0
-name: sewasetu-assistant
+name: harish-sewasetu-ai
 package: .
 cli_args:
   - /main.py
@@ -7,6 +7,6 @@ env:
   PYTHONEXECUTABLE: /bin/python
   PYTHONPATH: /app:.
   PORT: "8080"
-  PUBLIC_BASE_URL: https://sewasetu-assistant.wasmer.app
+  PUBLIC_BASE_URL: https://harish-sewasetu-ai.wasmer.app
   ADMIN_USERNAME: admin
   USE_SQLITE: "1"
