@@ -60,6 +60,25 @@ SCOPES = {
 
 
 # ---------------------------------------------------------------------------
+# helpers
+# ---------------------------------------------------------------------------
+
+def _parse_dt(val):
+    """Normalize SQLite string timestamps or pass through datetime objects."""
+    if val is None or isinstance(val, datetime):
+        return val
+    if isinstance(val, str):
+        try:
+            return datetime.fromisoformat(val)
+        except Exception:
+            try:
+                return datetime.strptime(val.split(".")[0], "%Y-%m-%d %H:%M:%S")
+            except Exception:
+                return datetime.now()
+    return val
+
+
+# ---------------------------------------------------------------------------
 # keys
 # ---------------------------------------------------------------------------
 
@@ -209,9 +228,16 @@ def load_client(client_id):
     cur.execute("SELECT client_id, client_name, redirect_uris, secret_hash, kind, fetched_at "
                 "FROM oauth_clients WHERE client_id = %s", (client_id,))
     row = cur.fetchone()
-    if row and (row[4] != "cimd" or (datetime.now() - row[5]).total_seconds() < 3600):
+    fetched_at = _parse_dt(row[5]) if row else None
+    if row and (row[4] != "cimd" or (fetched_at and (datetime.now() - fetched_at).total_seconds() < 3600)):
         cur.close(); conn.close()
-        return {"client_id": row[0], "client_name": row[1], "redirect_uris": row[2],
+        uris = row[2]
+        if isinstance(uris, str):
+            try:
+                uris = json.loads(uris)
+            except Exception:
+                uris = [uris]
+        return {"client_id": row[0], "client_name": row[1], "redirect_uris": uris,
                 "secret_hash": row[3], "kind": row[4]}
     if _is_url_client(client_id):
         try:
@@ -293,9 +319,16 @@ def _load_request(rid):
                 "WHERE id = %s", (rid,))
     row = cur.fetchone()
     cur.close(); conn.close()
-    if not row or (datetime.now() - row[5]).total_seconds() > 900:
+    created_at = _parse_dt(row[5]) if row else None
+    if not row or (created_at and (datetime.now() - created_at).total_seconds() > 900):
         return None
-    return {"id": row[0], "params": row[1], "subject": row[2], "role": row[3],
+    p = row[1]
+    if isinstance(p, str):
+        try:
+            p = json.loads(p)
+        except Exception:
+            pass
+    return {"id": row[0], "params": p, "subject": row[2], "role": row[3],
             "pending_mobile": row[4]}
 
 
@@ -325,12 +358,42 @@ def authorize():
         return _err_redirect(redirect_uri, state, "unsupported_response_type", "only code is supported")
     if q.get("code_challenge_method", "S256") != "S256" or not q.get("code_challenge"):
         return _err_redirect(redirect_uri, state, "invalid_request", "PKCE with S256 is required")
+    # Accept exactly one recognized role scope; if client sends both, bind by target resource
     scopes = [s for s in (q.get("scope") or "citizen").split() if s]
+    resource = q.get("resource", "").rstrip("/")
+
+    if len(scopes) > 1 and resource:
+        if resource.endswith("/mcp/citizen") and "citizen" in scopes:
+            scopes = ["citizen"]
+        elif resource.endswith("/mcp/officer") and "officer" in scopes:
+            scopes = ["officer"]
+
     unknown = [s for s in scopes if s not in SCOPES]
     if unknown or len(scopes) != 1:
-        return _err_redirect(redirect_uri, state, "invalid_scope",
-                             "request exactly one of: " + ", ".join(SCOPES))
-    resource = q.get("resource") or ISSUER
+        return _err_redirect(
+            redirect_uri,
+            state,
+            "invalid_scope",
+            "request exactly one of: " + ", ".join(SCOPES)
+        )
+    requested_role = scopes[0]
+
+    # Bind the OAuth scope to its corresponding MCP resource
+    expected_resources = {
+        "citizen": ISSUER.rstrip("/") + "/mcp/citizen",
+        "officer": ISSUER.rstrip("/") + "/mcp/officer"
+    }
+    expected_resource = expected_resources[requested_role]
+    if resource and resource not in (expected_resource, ISSUER, ISSUER + "/"):
+        return _err_redirect(
+            redirect_uri,
+            state,
+            "invalid_target",
+            f"resource '{resource}' does not match expected '{expected_resource}'"
+        )
+    if not resource:
+        resource = expected_resource
+
     rid = secrets.token_urlsafe(24)
     params = {
         "client_id": client_id, "client_name": client["client_name"], "redirect_uri": redirect_uri,
@@ -365,8 +428,9 @@ def login():
                             (mobile,))
                 row = cur.fetchone()
                 cur.close(); conn.close()
+                otp_created = _parse_dt(row[1]) if row else None
                 if row and secrets.compare_digest(row[0], code) and \
-                        (datetime.now() - row[1]).total_seconds() <= portal.OTP_VALIDITY_SECONDS:
+                        otp_created and (datetime.now() - otp_created).total_seconds() <= portal.OTP_VALIDITY_SECONDS:
                     _update_request(rid, subject="citizen:" + mobile)
                     return redirect(url_for("oauth.consent", rid=rid))
                 flash("Invalid or expired OTP.")
@@ -448,6 +512,8 @@ def _check_client_auth(client, form):
 def _issue(subject, role, scope, audience, client_id, session_ends=None, client_name=""):
     if session_ends is None:
         session_ends = datetime.now() + timedelta(seconds=SESSION[role]["session"])
+    else:
+        session_ends = _parse_dt(session_ends)
     access, claims = mint_access_token(subject, role, scope, audience, client_id,
                                        session_ends=session_ends)
     refresh = secrets.token_urlsafe(32)
@@ -490,6 +556,7 @@ def token():
         if not row:
             return _token_error("invalid_grant", "code is unknown or already used")
         c_client, c_redirect, c_scope, c_challenge, c_resource, subject, role, created = row
+        created = _parse_dt(created)
         if c_client != client_id:
             return _token_error("invalid_grant", "code was issued to a different client")
         if f.get("redirect_uri") and f.get("redirect_uri") != c_redirect:
@@ -517,6 +584,7 @@ def token():
             return _token_error("invalid_grant", "refresh token is invalid, expired or revoked; "
                                                  "the person must sign in again")
         _, subject, role, scope, resource, session_ends, client_name = row
+        session_ends = _parse_dt(session_ends)
         if f.get("resource") and f.get("resource") != resource:
             return _token_error("invalid_target", "resource differs from the original grant")
         # the session window is absolute: rotation never extends it

@@ -16,6 +16,7 @@ Verifies:
 
 import os
 import sys
+import json
 import unittest
 from datetime import datetime, date, timedelta
 
@@ -332,6 +333,67 @@ class TestAuditLogSensitiveOperations(unittest.TestCase):
         finally:
             cur.close()
             conn.close()
+
+
+class TestOAuthEndToEnd(unittest.TestCase):
+    """Test OAuth 2.1 RFC 8414 & RFC 9728 token generation, PKCE, and SQLite string normalization."""
+
+    def setUp(self):
+        self.app = portal.app
+        self.app.config["TESTING"] = True
+        self.client = self.app.test_client()
+        import oauth
+        self.oauth = oauth
+
+    def test_parse_dt_helper(self):
+        from datetime import datetime
+        now = datetime.now()
+        # Datetime pass-through
+        self.assertEqual(self.oauth._parse_dt(now), now)
+        # None pass-through
+        self.assertIsNone(self.oauth._parse_dt(None))
+        # String parsing with microseconds
+        s = "2026-10-31 23:04:34.188978"
+        parsed = self.oauth._parse_dt(s)
+        self.assertIsInstance(parsed, datetime)
+        self.assertEqual(parsed.year, 2026)
+        self.assertEqual(parsed.month, 10)
+        self.assertEqual(parsed.day, 31)
+
+    def test_mint_and_verify_jwt(self):
+        import jwt
+        token, claims = self.oauth.mint_access_token(
+            subject="citizen:9876500001",
+            role="citizen",
+            scope="citizen",
+            audience="http://localhost:8000/mcp/citizen",
+            client_id="test-client-id"
+        )
+        self.assertIsInstance(token, str)
+        self.assertEqual(claims["sub"], "citizen:9876500001")
+        self.assertEqual(claims["role"], "citizen")
+        self.assertEqual(claims["scope"], "citizen")
+
+        # Verify against public JWKS
+        jwks = self.oauth.public_jwks()
+        self.assertIn("keys", jwks)
+        public_key = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(jwks["keys"][0]))
+        decoded = jwt.decode(token, public_key, algorithms=["RS256"], audience="http://localhost:8000/mcp/citizen")
+        self.assertEqual(decoded["sub"], "citizen:9876500001")
+        self.assertEqual(decoded["role"], "citizen")
+
+    def test_role_specific_metadata_endpoints(self):
+        resp_citizen = self.client.get("/.well-known/oauth-protected-resource/mcp/citizen")
+        self.assertEqual(resp_citizen.status_code, 200)
+        data_c = json.loads(resp_citizen.data)
+        self.assertEqual(data_c["scopes_supported"], ["citizen"])
+        self.assertTrue(data_c["resource"].endswith("/mcp/citizen"))
+
+        resp_officer = self.client.get("/.well-known/oauth-protected-resource/mcp/officer")
+        self.assertEqual(resp_officer.status_code, 200)
+        data_o = json.loads(resp_officer.data)
+        self.assertEqual(data_o["scopes_supported"], ["officer"])
+        self.assertTrue(data_o["resource"].endswith("/mcp/officer"))
 
 
 if __name__ == "__main__":

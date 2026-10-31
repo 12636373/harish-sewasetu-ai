@@ -47,8 +47,34 @@ def get_public_base_url():
 
 
 # ---------------------------------------------------------------------------
-# RFC 9728: OAuth 2.0 Protected Resource Metadata
+# RFC 9728: Role-specific OAuth Protected Resource Metadata
 # ---------------------------------------------------------------------------
+
+@mcp_bp.get("/.well-known/oauth-protected-resource/mcp/citizen")
+def citizen_protected_resource():
+    """OAuth metadata for the citizen MCP resource."""
+    base_url = get_public_base_url()
+    return jsonify({
+        "resource": base_url + "/mcp/citizen",
+        "authorization_servers": [base_url],
+        "scopes_supported": ["citizen"],
+        "bearer_methods_supported": ["header"],
+        "resource_documentation": base_url + "/about"
+    })
+
+
+@mcp_bp.get("/.well-known/oauth-protected-resource/mcp/officer")
+def officer_protected_resource():
+    """OAuth metadata for the officer MCP resource."""
+    base_url = get_public_base_url()
+    return jsonify({
+        "resource": base_url + "/mcp/officer",
+        "authorization_servers": [base_url],
+        "scopes_supported": ["officer"],
+        "bearer_methods_supported": ["header"],
+        "resource_documentation": base_url + "/about"
+    })
+
 
 @mcp_bp.get("/.well-known/oauth-protected-resource")
 def oauth_protected_resource():
@@ -76,9 +102,13 @@ def authenticate_mcp_request(required_role):
     auth_header = request.headers.get("Authorization", "")
     base_url = get_public_base_url()
 
-    # Challenge header for 401
+    # Challenge header for 401: RFC 9728 points to role-specific metadata
+    metadata_url = (
+        f"{base_url}/.well-known/oauth-protected-resource"
+        f"/mcp/{required_role}"
+    )
     www_auth = (
-        f'Bearer resource_metadata="{base_url}/.well-known/oauth-protected-resource", '
+        f'Bearer resource_metadata="{metadata_url}", '
         f'scope="{required_role}"'
     )
 
@@ -492,7 +522,11 @@ def execute_citizen_tool(tool_name, args, claims):
 
             # Prepare document path
             os.makedirs(portal.UPLOAD_DIR, exist_ok=True)
-            doc_type = args.get("document_type", "Age Proof Certificate")
+            doc_type = (args.get("document_type") or "").strip()
+            if not doc_type or doc_type.lower() in ("none", "null"):
+                return {
+                    "error": "Statutory age proof document is required (e.g. 'Voter ID Card', 'Aadhaar Card', 'PAN Card', 'Birth Certificate'). Cannot submit without valid document."
+                }, True
             doc_filename = args.get("document_filename") or f"{mobile}_proof.pdf"
             doc_path = os.path.join(portal.UPLOAD_DIR, f"{mobile}_{os.path.basename(doc_filename)}")
 
@@ -652,6 +686,7 @@ def execute_citizen_tool(tool_name, args, claims):
             return {
                 "success": True,
                 "grievance_no": grv_no,
+                "grievance_id": grv_no,
                 "application_no": app_no or "N/A",
                 "category": category,
                 "status": "REGISTERED",
@@ -1743,3 +1778,4 @@ def mcp_officer_messages():
 
     response = handle_jsonrpc_request(req_body, OFFICER_TOOLS, execute_officer_tool, "sewasetu-officer-mcp", claims)
     return jsonify(response) if response else ("", 204)
+

@@ -12,6 +12,7 @@ import io
 import re
 import random
 import hashlib
+import secrets
 import configparser
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
@@ -46,7 +47,11 @@ config = configparser.ConfigParser()
 config.read(os.path.join(BASE_DIR, "config", "app.ini"))
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY") or (config.get("app", "secret_key") if config.has_section("app") else "dev-secret-key-123")
+_cfg_secret = config.get("app", "secret_key", fallback="") if config.has_section("app") else ""
+if _cfg_secret in ("ssp-prod-key-2023-donotshare", "dev-secret-key-123", "") and not os.environ.get("SECRET_KEY"):
+    app.secret_key = secrets.token_hex(32)
+else:
+    app.secret_key = os.environ.get("SECRET_KEY", _cfg_secret)
 # Two hours: elderly applicants fill the form slowly; the draft lives in the session.
 app.config["PERMANENT_SESSION_LIFETIME"] = 7200
 
@@ -57,7 +62,7 @@ ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD") or (config.get("app", "admin_p
 # WITHDRAWN and REJECTED applications do not block a fresh application.
 ACTIVE_STATUSES = ("PENDING", "APPROVED", "DEEMED_APPROVED")
 
-SMS_GATEWAY_URL = config.get("app", "sms_gateway_url") if config.has_section("app") else "http://localhost:8025"
+SMS_GATEWAY_URL = os.environ.get("SMS_GATEWAY_URL") or (config.get("app", "sms_gateway_url") if config.has_section("app") else "http://localhost:8025")
 OTP_VALIDITY_SECONDS = config.getint("app", "otp_validity_seconds") if config.has_section("app") else 300
 UPLOAD_DIR = config.get("app", "upload_dir") if config.has_section("app") else os.path.join(BASE_DIR, "uploads")
 try:
