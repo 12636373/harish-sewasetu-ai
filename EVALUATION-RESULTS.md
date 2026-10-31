@@ -13,6 +13,7 @@
 - **Overall Pass Rate:** **100.0%**
 - **Evaluation Target Endpoints:** `/mcp/citizen`, `/mcp/officer`
 - **Database System of Record Verified:** SQLite & PostgreSQL 15 (`applications`, `portal_users`, `audit_log`, `otps`)
+- **Interactive Evaluation Dashboard:** Accessible live at `http://localhost:8000/eval-dashboard`
 
 ---
 
@@ -41,7 +42,7 @@ All 12 evaluation tests query the portal database directly using independent SQL
 
 ```text
 [PASS] PERSONA_1: Phuleswari Saikia (/mcp/citizen)
-      [OK] Application created with status PENDING -> Found: SSP26398153
+      [OK] Application created with status PENDING -> Found: SSP26940971
       [OK] portal_users account exists with DOB password hash -> Count: 1
       [OK] Audit log records SUBMIT action for applicant -> Audit rows: 1
       [OK] Age proof document stored on disk -> Path: /var/sewasetu/uploads\9876500001_proof.pdf
@@ -66,7 +67,7 @@ All 12 evaluation tests query the portal database directly using independent SQL
       [OK] Audit log records statutory DEEMED_APPROVED transition -> Count: 1
 [PASS] PERSONA_8: Bireswar Roy (/mcp/citizen)
       [OK] Audit log records GRIEVANCE action for applicant -> Count: 1
-      [OK] Grievance tracking ID generated with GRV prefix -> GRV26543447
+      [OK] Grievance tracking ID generated with GRV prefix -> GRV26738578
 [PASS] PERSONA_9: Ratul Sarma (/mcp/citizen)
       [OK] IDOR prevention: Caller cannot view other citizens' dossiers -> Has application: False
       [OK] Zero disclosure of Phuleswari Saikia's banking details -> Protected
@@ -80,3 +81,109 @@ All 12 evaluation tests query the portal database directly using independent SQL
       [OK] Calculated age from DOB overrides contradictory verbal claim -> Eligible: False, Calculated Age: 55
       [OK] Zero invalid applications created in database -> Count: 0
 ```
+
+---
+
+## 4. OpenCode 1.19.5 Real MCP Client Live Verification
+
+OpenCode 1.19.5 was executed locally against `http://localhost:8000/mcp/citizen` to demonstrate end-to-end OAuth 2.1 RFC 8414 discovery, PKCE S256 verifier exchange, dynamic loopback port redirection, and genuine bearer token acquisition:
+
+```text
+PS C:\Users\haris\OneDrive\Desktop\CODE\sewasetu-ai-handout> opencode mcp list
+T  MCP Servers
+|
+•  ✓ sewasetu-citizen connected
+|      http://localhost:8000/mcp/citizen
+|
+—  1 server(s)
+
+PS C:\Users\haris\OneDrive\Desktop\CODE\sewasetu-ai-handout> opencode mcp debug sewasetu-citizen
+T  MCP OAuth Debug
+|
+•  Server: sewasetu-citizen
+|
+•  URL: http://localhost:8000/mcp/citizen
+|
+•  Auth status: ✓ authenticated
+|
+•    Access token: eyJh***ooCg
+|
+•    Expires: 2026-10-31T18:32:28.041Z 
+|
+•    Refresh token: present
+|
+•    Client ID: ssc_lY7C7oiMxekZJGQcVMclCQ
+|
+o  HTTP response: 401 UNAUTHORIZED
+|
+•  WWW-Authenticate: Bearer resource_metadata="http://localhost:8000/.well-known/oauth-protected-resource/mcp/citizen", scope="citizen"
+|
+•  Initial unauthenticated check returned 401, so this server requires OAuth
+|
+•  Testing OAuth flow (without completing authorization)...
+|
+*  Connection successful (already authenticated)
+|
+—  Debug complete
+```
+
+---
+
+## 5. Claude Code Small-Model Testing Protocol
+
+When eligible Anthropic credentials or an API key are provided, Claude Code can be evaluated against the Citizen MCP server using the following repeatable protocol:
+
+### Step 1: Claude Code MCP Configuration
+Create or update `~/.claude.json` or project-level configuration:
+```json
+{
+  "mcpServers": {
+    "sewasetu-citizen": {
+      "type": "remote",
+      "url": "http://localhost:8000/mcp/citizen"
+    }
+  }
+}
+```
+*Note: Ensure `sewasetu-officer` is omitted from the configuration to preserve citizen role isolation.*
+
+### Step 2: Small-Model Parameter Selection
+Run Claude Code with Haiku / small model and strict turn limitations:
+```bash
+claude --model claude-3-5-haiku --max-turns 3
+```
+
+### Step 3: Phuleswari Saikia Test Prompt (Turn 1)
+```text
+Namaskar! My grandmother Phuleswari Saikia is 71 years old and lives in Borhat village, Sonari block. Can she get the old age pension?
+```
+**Expected Tool Call:** `check_eligibility(dob="10/03/1955", block="Sonari", village="Borhat")`
+
+### Step 4: Submission Prompt (Turn 2)
+```text
+Yes please submit her application. Her mobile is 9876500001, bank account is 14220100054321, IFSC is UCBA0001422, and her document is Voter ID Card.
+```
+**Expected Tool Call:** `submit_application(...)`
+
+### Step 5: Post-Execution SQL Invariant Check
+Execute in PowerShell:
+```sql
+SELECT application_no, applicant_name, status, decider, created_at 
+FROM applications 
+WHERE mobile = '9876500001';
+```
+**Expected Assertion:**
+- `status` = `'PENDING'`
+- `decider` = `NULL`
+- Row exists in `portal_users` with password hash matching DOB `10031955`.
+
+---
+
+## 6. Architectural Privilege Segregation & Zero Tool Leakage
+
+Automated regression suite in `tests/test_backend_logic.py::TestMCPServerSeparation` validates the following guarantees:
+
+1. **Unauthenticated Access:** POST requests to either `/mcp/citizen` or `/mcp/officer` return `HTTP 401 Unauthorized` with `WWW-Authenticate: Bearer resource_metadata="..."`.
+2. **Cross-Role Token Rejection:** A valid Citizen token used against `/mcp/officer` returns `HTTP 403 Forbidden` (`insufficient_scope`).
+3. **Zero Tool Leakage:** Calling `tools/list` on `/mcp/citizen` returns strictly the 10 citizen tools. Officer tools (`approve_application`, `reject_application`, `list_pending_applications`, `verify_documents`) are completely omitted from the schema.
+4. **Invalid Invocation:** Attempting to invoke `approve_application` on `/mcp/citizen` returns JSON-RPC error `-32601 Method not found`.

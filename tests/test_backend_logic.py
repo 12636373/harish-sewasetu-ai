@@ -396,5 +396,129 @@ class TestOAuthEndToEnd(unittest.TestCase):
         self.assertTrue(data_o["resource"].endswith("/mcp/officer"))
 
 
+class TestMCPServerSeparation(unittest.TestCase):
+    """Test strict privilege separation and zero tool leakage between citizen and officer MCP servers."""
+
+    def setUp(self):
+        self.app = portal.app
+        self.app.config["TESTING"] = True
+        self.client = self.app.test_client()
+        import oauth
+        self.oauth = oauth
+
+        self.citizen_token, _ = self.oauth.mint_access_token(
+            subject="citizen:9876500001",
+            role="citizen",
+            scope="citizen",
+            audience="http://localhost:8000/mcp/citizen",
+            client_id="test-client-id"
+        )
+        self.officer_token, _ = self.oauth.mint_access_token(
+            subject="officer:admin",
+            role="officer",
+            scope="officer",
+            audience="http://localhost:8000/mcp/officer",
+            client_id="test-client-id"
+        )
+
+    def test_unauthenticated_requests_return_401(self):
+        r_c = self.client.post("/mcp/citizen", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+        self.assertEqual(r_c.status_code, 401)
+        self.assertIn("WWW-Authenticate", r_c.headers)
+
+        r_o = self.client.post("/mcp/officer", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+        self.assertEqual(r_o.status_code, 401)
+        self.assertIn("WWW-Authenticate", r_o.headers)
+
+    def test_authenticated_requests_succeed(self):
+        r_c = self.client.post(
+            "/mcp/citizen",
+            json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+            headers={"Authorization": f"Bearer {self.citizen_token}"}
+        )
+        self.assertEqual(r_c.status_code, 200)
+
+        r_o = self.client.post(
+            "/mcp/officer",
+            json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+            headers={"Authorization": f"Bearer {self.officer_token}"}
+        )
+        self.assertEqual(r_o.status_code, 200)
+
+    def test_cross_role_token_rejected_with_403(self):
+        # Citizen token used against officer endpoint -> 403 Forbidden
+        r1 = self.client.post(
+            "/mcp/officer",
+            json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+            headers={"Authorization": f"Bearer {self.citizen_token}"}
+        )
+        self.assertEqual(r1.status_code, 403)
+        self.assertIn("insufficient_scope", r1.get_json()["error"])
+
+        # Officer token used against citizen endpoint -> 403 Forbidden
+        r2 = self.client.post(
+            "/mcp/citizen",
+            json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+            headers={"Authorization": f"Bearer {self.officer_token}"}
+        )
+        self.assertEqual(r2.status_code, 403)
+        self.assertIn("insufficient_scope", r2.get_json()["error"])
+
+    def test_expired_and_invalid_tokens_return_401(self):
+        # Malformed token
+        r_bad = self.client.post(
+            "/mcp/citizen",
+            json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+            headers={"Authorization": "Bearer bad.token.string"}
+        )
+        self.assertEqual(r_bad.status_code, 401)
+
+        # Expired token
+        past = datetime.now() - timedelta(hours=1)
+        expired_token, _ = self.oauth.mint_access_token(
+            subject="citizen:9876500001",
+            role="citizen",
+            scope="citizen",
+            audience="http://localhost:8000/mcp/citizen",
+            client_id="test-client-id",
+            session_ends=past
+        )
+        r_exp = self.client.post(
+            "/mcp/citizen",
+            json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+            headers={"Authorization": f"Bearer {expired_token}"}
+        )
+        self.assertEqual(r_exp.status_code, 401)
+        self.assertTrue("expired" in r_exp.get_json().get("error_description", "").lower())
+
+    def test_zero_tool_leakage(self):
+        # Fetch citizen tool list
+        r_c = self.client.post(
+            "/mcp/citizen",
+            json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+            headers={"Authorization": f"Bearer {self.citizen_token}"}
+        )
+        c_tools = [t["name"] for t in r_c.get_json()["result"]["tools"]]
+
+        # Officer-only tools must NEVER appear in citizen catalog
+        officer_only = ["approve_application", "reject_application", "list_pending_applications", "verify_documents"]
+        for tool in officer_only:
+            self.assertNotIn(tool, c_tools)
+
+        # Invoking an officer tool on citizen endpoint must fail with -32601 (Method/Tool not found)
+        r_inv = self.client.post(
+            "/mcp/citizen",
+            json={
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {"name": "approve_application", "arguments": {"application_id": 1}}
+            },
+            headers={"Authorization": f"Bearer {self.citizen_token}"}
+        )
+        self.assertEqual(r_inv.status_code, 200)
+        self.assertEqual(r_inv.get_json()["error"]["code"], -32601)
+
+
 if __name__ == "__main__":
     unittest.main()

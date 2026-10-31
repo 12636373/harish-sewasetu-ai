@@ -52,5 +52,7 @@ zip -r sewasetu-assistant.zip sewasetu-assistant -x "sewasetu-assistant/.venv/*"
 - [x] **SMS Gateway & Audit Trail:** Verified carrier dispatch at port 8025 and comprehensive `audit_log` rows.
 - [x] **RTPS 15-Day SLA:** Automatic transition to `DEEMED_APPROVED` with decider `RTPS-AUTO`.
 - [x] **Security Hardening:** Automatic fallback secret generation; zero plaintext passwords in chat or logs.
-- [x] **Automated Test Suite:** 24/24 unit and integration tests passing (`pytest -q`).
+- [x] **Automated Test Suite:** 29/29 unit and integration tests passing (`pytest -q`).
 - [x] **Independent Protocol Suite:** 8/8 protocol verification stages passing (`verify_mcp_independent.py`).
+- [x] **OpenCode Real Client:** OpenCode 1.19.5 connected and authenticated via OAuth 2.1 (`opencode mcp list`).
+- [x] **Pre-packaged Archive:** `sewasetu-assistant.zip` (37.86 MB) packaged with complete `.git` history.
